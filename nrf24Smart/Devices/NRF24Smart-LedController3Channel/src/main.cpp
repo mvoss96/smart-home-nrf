@@ -1,11 +1,37 @@
 #include <Arduino.h>
 #include "RFcomm.h"
+#include "blink.h"
 
 void (*resetFunc)(void) = 0;
+volatile bool btnPressed = false;
+
+ISR(PCINT1_vect)
+{
+  btnPressed = !digitalRead(PIN_BTN1);
+}
+
+void setPinModes()
+{
+  pinMode(PIN_LED1, OUTPUT);
+  pinMode(PIN_LED2, OUTPUT);
+  pinMode(PIN_OUTPUT_R, OUTPUT);
+  pinMode(PIN_OUTPUT_G, OUTPUT);
+  pinMode(PIN_OUTPUT_B, OUTPUT);
+  pinMode(PIN_BTN1, INPUT_PULLUP);
+
+  // Enable interrupt on PIN_BTN1
+  PCICR |= (1 << PCIE1);   // Aktivate Interrupts on Port C (analog)
+  PCMSK1 |= (1 << PCINT4); // Aktivate Pin Change ISR for A4
+}
 
 void setup()
 {
   Serial.begin(115200);
+  Serial.println(DEVICE_TYPE);
+  setPinModes();
+  delay(500);
+  digitalWrite(PIN_LED1, HIGH);
+  digitalWrite(PIN_LED2, HIGH);
   connectToServer();
   printEEPROM(5);
   delay(1000);
@@ -13,6 +39,14 @@ void setup()
 
 void loop()
 {
+  // Check for reset button
+   if (btnPressed)
+  {
+    btnPressed = false;
+    resetEEPROM();
+    delay(1000);
+  }
+
   if (!serverConnected)
   {
     Serial.println("Connecting to Server:");

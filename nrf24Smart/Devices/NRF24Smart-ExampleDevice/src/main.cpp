@@ -6,8 +6,8 @@ void (*resetFunc)(void) = 0;
 void setup()
 {
   Serial.begin(115200);
-  //resetEEPROM();
-  //delay(100000000);
+  resetEEPROM();
+  delay(100000000);
   connectToServer();
   printEEPROM(5);
   delay(1000);

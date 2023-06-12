@@ -2,6 +2,7 @@
 #include <NRFLite.h>
 #include <EEPROM.h>
 #include "RFcomm.h"
+#include "blink.h"
 
 uint8_t radioID = INITIAL_RADIO_ID;
 uint8_t serverUUID[4];
@@ -11,6 +12,7 @@ NRFLite _radio;
 void resetEEPROM()
 {
     Serial.println("Reset EEPROM...");
+    blink(PIN_LED2, 4, 100);
     for (size_t i = 0; i < EEPROM.length(); i++)
     {
         EEPROM.update(i, INITIAL_RADIO_ID);
@@ -92,11 +94,12 @@ void connectToServer()
         {
             // Try to reach Server
             Serial.println("Send INIT Message to Server!");
+            blink(PIN_LED1, 1, 100);
             bool result = _radio.send(SERVER_RADIO_ID, &pck, pck.getSize());
             if (!result)
             {
                 Serial.println("Server could not be reached for first INIT message!");
-                delay(1000);
+                delay(3000);
                 continue;
             }
 
