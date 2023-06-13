@@ -3,16 +3,24 @@
 #include <EEPROM.h>
 #include "RFcomm.h"
 #include "blink.h"
+#include "control.h"
 
 uint8_t radioID = INITIAL_RADIO_ID;
 uint8_t serverUUID[4];
 bool serverConnected = false;
 NRFLite _radio;
 
+// Send fucntion with LED blink
+uint8_t nrfSend(uint8_t toRadioId, void *data, uint8_t length, NRFLite::SendType sendType = NRFLite::REQUIRE_ACK)
+{
+    blink(PIN_LED1, 1, 100);
+    return _radio.send(SERVER_RADIO_ID, data, length, sendType);
+}
+
 void resetEEPROM()
 {
     Serial.println("Reset EEPROM...");
-    blink(PIN_LED2, 4, 100);
+    blinkBoth(6, 200);
     for (size_t i = 0; i < EEPROM.length(); i++)
     {
         EEPROM.update(i, INITIAL_RADIO_ID);
@@ -59,6 +67,7 @@ void loadFromEEPROM()
 
 void saveToEEPROM()
 {
+    blinkBoth(2, 200);
     EEPROM.update(0, radioID);
     EEPROM.update(1, serverUUID[0]);
     EEPROM.update(2, serverUUID[1]);
@@ -94,8 +103,7 @@ void connectToServer()
         {
             // Try to reach Server
             Serial.println("Send INIT Message to Server!");
-            blink(PIN_LED1, 1, 100);
-            bool result = _radio.send(SERVER_RADIO_ID, &pck, pck.getSize());
+            bool result = nrfSend(SERVER_RADIO_ID, &pck, pck.getSize());
             if (!result)
             {
                 Serial.println("Server could not be reached for first INIT message!");
@@ -142,5 +150,10 @@ void connectToServer()
     radioInit();
     // Send BOOT message
     ClientPacket bootpck(radioID, MSG_TYPES::BOOT, serverUUID, 4);
-    _radio.send(SERVER_RADIO_ID, &bootpck, bootpck.getSize());
+    nrfSend(SERVER_RADIO_ID, &bootpck, bootpck.getSize());
+}
+
+void sendStatus(){
+    ClientPacket pck(radioID, MSG_TYPES::STATUS, (uint8_t*)&status, sizeof(status));
+     nrfSend(SERVER_RADIO_ID, &pck, pck.getSize());
 }

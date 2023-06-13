@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "RFcomm.h"
 #include "blink.h"
+#include "power.h"
 
 void (*resetFunc)(void) = 0;
 volatile bool btnPressed = false;
@@ -28,6 +29,8 @@ void setup()
 {
   Serial.begin(115200);
   Serial.println(DEVICE_TYPE);
+  Serial.println(readVcc());
+  Serial.println(batteryLevel());
   setPinModes();
   delay(500);
   digitalWrite(PIN_LED1, HIGH);
@@ -40,7 +43,7 @@ void setup()
 void loop()
 {
   // Check for reset button
-   if (btnPressed)
+  if (btnPressed)
   {
     btnPressed = false;
     resetEEPROM();
@@ -62,11 +65,16 @@ void loop()
     ServerPacket pck(buf, packetSize);
     if (pck.isValid())
     {
+      blink(PIN_LED2, 1, 100);
       switch ((MSG_TYPES)pck.getTYPE())
       {
       case MSG_TYPES::RESET:
         Serial.println("RESET message received: resetting Device...");
         resetEEPROM();
+        break;
+      case MSG_TYPES::GET:
+        Serial.println("GET message received: sending status...");
+        sendStatus();
         break;
       default:
         Serial.println("Unsupported message received!");

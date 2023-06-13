@@ -2,7 +2,7 @@
 #include <Arduino.h>
 #include <NRFLite.h>
 #include "config.h"
-
+#include "power.h"
 
 
 enum class MSG_TYPES : uint8_t
@@ -13,6 +13,7 @@ enum class MSG_TYPES : uint8_t
     SET,
     GET,
     RESET,
+    STATUS,
 };
 
 
@@ -59,6 +60,9 @@ public:
         MSG_TYPE = (uint8_t)type;
         this->dataSize = dataSize;
         ID = id;
+        if (DEVICE_BATTERY_POWERED == 1){
+            POWER_TYPE = batteryLevel(); 
+        }
         addChecksum();
     }
 
@@ -69,6 +73,7 @@ public:
 
     void print()
     {
+        Serial.print("ClientPacket: ");
         Serial.print("ID: ");
         Serial.print(ID);
         Serial.print(" ");
@@ -146,7 +151,7 @@ public:
         MSG_TYPE = pckData[5];
         memcpy(DATA, pckData + 6, dataSize + 2);
         valid = checkChecksum();
-        print();
+        //print();
     }
 
     bool isValid()
@@ -181,6 +186,7 @@ public:
 
     void print()
     {
+        Serial.print("ServerPacket: ");
         Serial.print("ID: ");
         Serial.print(ID);
         Serial.print(" ");
@@ -215,3 +221,4 @@ void loadFromEEPROM();
 
 void radioInit();
 void connectToServer();
+void sendStatus();

@@ -1,6 +1,22 @@
 #include "blink.h"
+#include "config.h"
 
-// blink function takes a pin number, a count of blinks, and a duration for each blink
+// Blink function takes  a count of blinks, and a duration for each blink
+// It turns both LEDs on and off for the specified duration and count
+void blinkBoth(uint8_t count, unsigned long duration)
+{
+  for (uint8_t i = 0; i < count; i++)
+  {
+    digitalWrite(PIN_LED1, LOW);
+    digitalWrite(PIN_LED2, LOW);
+    delay(duration);
+    digitalWrite(PIN_LED1, HIGH);
+    digitalWrite(PIN_LED2, HIGH);
+    delay(duration);
+  }
+}
+
+// Blink function takes a pin number, a count of blinks, and a duration for each blink
 // It turns the LED on and off for the specified duration and count
 void blink(uint8_t pin, uint8_t count, unsigned long duration)
 {
@@ -10,26 +26,5 @@ void blink(uint8_t pin, uint8_t count, unsigned long duration)
     delay(duration);
     digitalWrite(pin, HIGH);
     delay(duration);
-  }
-}
-
-// blink_code function takes a blink_pattern (uint8_t) as input and
-// calls the blink function with the appropriate parameters for each pattern
-void blinkCode(uint8_t pin, BlinkCode blink_pattern)
-{
-  switch (blink_pattern)
-  {
-  case BlinkCode::BLINK_INIT_OK:
-    blink(pin, 1, 200);
-    break;
-  case BlinkCode::BLINK_INIT_ERROR:
-    blink(pin, 1, 200);
-    blink(pin, 4, 100);
-    break;
-  case BlinkCode::BLINK_ONCE:
-    blink(pin, 1, 50);
-    break;
-  default:
-    break;
   }
 }
