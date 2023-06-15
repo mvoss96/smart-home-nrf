@@ -131,7 +131,7 @@ class DBManager:
         except Exception as e:
             logger.error(f"Unexpected error while updating device in DB: {e}")
 
-    def remove_device_from_db(self, device_uuid: int):
+    def remove_device_from_db(self, device_uuid: list[int]):
         """
         Remove a device from the devices table using the given UUID.
         """
@@ -150,12 +150,11 @@ class DBManager:
         logger.info(f"Changing Name of Device with uuid {device_uuid} to {new_name}")
         Q = Query()
         try:
-            with self.db_lock:
-                # Find the device with the given UUID
-                device = self.search_device_in_db(device_uuid)
-                if device:
-                    device['name'] = new_name
-                    self.update_device_in_db(device)
+            # Find the device with the given UUID
+            device = self.search_device_in_db(device_uuid)
+            if device:
+                device['name'] = new_name
+                self.update_device_in_db(device)
         except Exception as e:
             logger.error(f"Unexpected error while removing device in DB: {e}")
         
