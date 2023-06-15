@@ -92,7 +92,7 @@ class CommunicationManager:
         current_time = time.time()
         if current_time - self.last_update_time < 2.0:  # less than one second has passed
             return  # Return without doing anything
-        for item in self.device_manager.db_manager.devices_table:
+        for item in self.device_manager.db_manager.get_all_devices():
             # print(f"update status of device:{item['type']} uuid:{item['uuid']}")
             self.poll_device(item["uuid"])
 

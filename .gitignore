@@ -7,3 +7,5 @@ nrf24Smart/Devices/NRF24Smart-LedController3Channel/compile_commands.json
 db2.json
 .vscode/settings.json
 .vscode/*
+__pycache__/**
+
