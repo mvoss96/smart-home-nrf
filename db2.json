@@ -23,14 +23,14 @@
             "battery_level": 255,
             "type": "LedController3Channel",
             "name": "LedController1",
-            "last_seen": "2023-06-15 12:28:11",
+            "last_seen": "2023-06-15 12:28:39",
             "status": {
                 "power": 1,
                 "brightness": 127,
                 "ch_1": 255,
                 "ch_2": 255,
                 "ch_3": 255,
-                "timestamp": "2023-06-15 12:28:11"
+                "timestamp": "2023-06-15 12:28:39"
             }
         }
     }
