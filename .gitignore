@@ -2,3 +2,4 @@
 **/pi.code-workspace
 /nrf24USB/__pycache__/*
 db.json
+nrf24Smart/Devices/NRF24Smart-LedController3Channel/compile_commands.json
