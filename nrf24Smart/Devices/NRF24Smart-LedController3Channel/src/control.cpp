@@ -1,5 +1,6 @@
 #include "control.h"
 #include "config.h"
+#include "RFcomm.h"
 
 // Status object to keep track of various parameters
 Status status;
@@ -44,7 +45,7 @@ void setPower(bool newPwr)
 // Function to set brightness
 void setBrightness(uint8_t newBr)
 {
-    status.brightness = newBr;
+    status.brightness = max(1, newBr);
 }
 
 // Function to increase brightness, taking care not to exceed 255
@@ -56,7 +57,7 @@ void increaseBrightness(uint8_t val)
 // Function to decrease brightness, taking care not to go below 0
 void decreaseBrightness(uint8_t val)
 {
-    status.brightness = max(0, status.brightness - val);
+    status.brightness = max(1, status.brightness - val);
 }
 
 // Function to set a specific color channel to a given value
@@ -83,4 +84,91 @@ void setRGB(uint8_t r, uint8_t g, uint8_t b)
     *channels[0] = r;
     *channels[1] = g;
     *channels[2] = b;
+}
+
+void setStatus(uint8_t *data, uint8_t length)
+{
+    SetMessage msg(data, length);
+    if (!msg.isValid)
+    {
+        return;
+    }
+    switch (msg.varIndex)
+    {
+    case 0:
+        if (msg.changeType == (uint8_t)ChangeTypes::SET)
+        {
+            setPower(*msg.newValue);
+        }
+        else if (msg.changeType == (uint8_t)ChangeTypes::TOGGLE)
+        {
+            togglePower();
+        }
+        else
+        {
+            Serial.println("ERROR: Unsupported setType for POWER!");
+        }
+        break;
+    case 1:
+        if (msg.changeType == (uint8_t)ChangeTypes::SET)
+        {
+            setBrightness(*msg.newValue);
+        }
+        else if (msg.changeType == (uint8_t)ChangeTypes::INCREASE)
+        {
+            increaseBrightness(*msg.newValue);
+        }
+        else if (msg.changeType == (uint8_t)ChangeTypes::DECREASE)
+        {
+            decreaseBrightness(*msg.newValue);
+        }
+        else
+        {
+            Serial.println("ERROR: Unsupported setType for BRIGHTNESS!");
+        }
+        break;
+    case 2:
+    case 3:
+    case 4:
+        if (msg.changeType == (uint8_t)ChangeTypes::SET)
+        {
+            setChannel(msg.varIndex - 2, *msg.newValue);
+        }
+        else if (msg.changeType == (uint8_t)ChangeTypes::INCREASE)
+        {
+            increaseChannel(msg.varIndex - 2, *msg.newValue);
+        }
+        else if (msg.changeType == (uint8_t)ChangeTypes::DECREASE)
+        {
+            decreaseChannel(msg.varIndex - 2, *msg.newValue);
+        }
+        else
+        {
+            Serial.print("ERROR: Unsupported setType for Channel ");
+            Serial.println(msg.varIndex - 2);
+        }
+        break;
+    case 5:
+        if (msg.changeType == (uint8_t)ChangeTypes::SET)
+        {
+            if (msg.valueSize == 3)
+            {
+                setRGB(*(msg.newValue), *(msg.newValue + 1), *(msg.newValue + 2));
+            }
+            else
+            {
+                Serial.println("ERROR: Incompatible valueSize for RGB!");
+            }
+        }
+        else
+        {
+            Serial.println("ERROR: Unsupported setType for RGB!");
+        }
+        break;
+    default:
+    {
+        Serial.println("ERROR: Unsupported changeType!");
+    }
+    }
+    setOutput();
 }

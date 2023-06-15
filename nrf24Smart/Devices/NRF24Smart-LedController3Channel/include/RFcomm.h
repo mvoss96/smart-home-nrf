@@ -4,7 +4,6 @@
 #include "config.h"
 #include "power.h"
 
-
 enum class MSG_TYPES : uint8_t
 {
     INIT,
@@ -15,8 +14,6 @@ enum class MSG_TYPES : uint8_t
     RESET,
     STATUS,
 };
-
-
 
 // Must be max 32 bytes
 class ClientPacket
@@ -60,8 +57,9 @@ public:
         MSG_TYPE = (uint8_t)type;
         this->dataSize = dataSize;
         ID = id;
-        if (DEVICE_BATTERY_POWERED == 1){
-            POWER_TYPE = batteryLevel(); 
+        if (DEVICE_BATTERY_POWERED == 1)
+        {
+            POWER_TYPE = batteryLevel();
         }
         addChecksum();
     }
@@ -151,7 +149,7 @@ public:
         MSG_TYPE = pckData[5];
         memcpy(DATA, pckData + 6, dataSize + 2);
         valid = checkChecksum();
-        //print();
+        // print();
     }
 
     bool isValid()
@@ -209,6 +207,42 @@ public:
             Serial.print(" ");
         }
         Serial.println();
+    }
+};
+
+enum class ChangeTypes : uint8_t{
+    SET,
+    TOGGLE,
+    INCREASE,
+    DECREASE,
+};
+
+struct SetMessage
+{
+    uint8_t varIndex;
+    uint8_t changeType;
+    uint8_t valueSize;
+    uint8_t *newValue;
+
+    bool isValid = false;
+
+    SetMessage(uint8_t *data, uint8_t size)
+    {
+        if (size < 4)
+        {
+            Serial.println("ERROR: Too small SetMessage size!");
+            return;
+        }
+        varIndex = data[0];
+        changeType = data[1];
+        valueSize = data[2];
+        newValue = data + 3;
+        if (size - valueSize != 3)
+        {
+            Serial.println("ERROR: Incompatible SetMessage size!");
+            return;
+        }
+        isValid = true;
     }
 };
 

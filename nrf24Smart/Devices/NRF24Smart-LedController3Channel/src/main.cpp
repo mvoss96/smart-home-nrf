@@ -2,6 +2,7 @@
 #include "RFcomm.h"
 #include "blink.h"
 #include "power.h"
+#include "control.h"
 
 void (*resetFunc)(void) = 0;
 volatile bool btnPressed = false;
@@ -38,6 +39,7 @@ void setup()
   connectToServer();
   printEEPROM(5);
   delay(1000);
+  setOutput();
 }
 
 void loop()
@@ -69,15 +71,19 @@ void loop()
       switch ((MSG_TYPES)pck.getTYPE())
       {
       case MSG_TYPES::RESET:
-        Serial.println("RESET message received: resetting Device...");
+        Serial.println("-> RESET message received...");
         resetEEPROM();
         break;
       case MSG_TYPES::GET:
-        Serial.println("GET message received: sending status...");
+        Serial.println("-> GET message received...");
         sendStatus();
         break;
+      case MSG_TYPES::SET:
+      Serial.println("-> SET message received... ");
+      setStatus(pck.getDATA(), pck.getSize());
+      break;
       default:
-        Serial.println("Unsupported message received!");
+        Serial.println("-> Unsupported message received!");
       }
     }
   }
