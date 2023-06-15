@@ -1,4 +1,5 @@
 /nrf24Smart/__pycache__/*
+**__/pycache/*
 **/pi.code-workspace
 /nrf24USB/__pycache__/*
 db.json
