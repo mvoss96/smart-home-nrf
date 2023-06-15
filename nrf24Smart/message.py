@@ -7,6 +7,30 @@ class MSG_TYPES(Enum):
     OK = 2
     SET = 3
     GET = 4
+    RESET = 5
+    STATUS = 6
+
+class CHANGE_TYPES(Enum):
+   SET = 0
+   TOGGLE = 1
+   INCREASE = 2
+   DECREASE = 3
+
+
+class SetMessage:
+    def __init__(self, index: int, changeType: CHANGE_TYPES, value : list[int] = [0]):
+        self.varIndex = index
+        self.changeType = changeType 
+        self.valueSize= len(value)
+        self.newValue = value
+
+    def get_raw(self) -> list[int]:
+        return [self.varIndex] + [self.changeType.value] + [self.valueSize] + self.newValue
+    
+    def __str__(self) -> str:
+        return (
+            f"SetMessage varIndex:{self.varIndex} changeType:{self.changeType} valueSize:{self.valueSize} newValue:{self.newValue}")
+    
 
 
 class DeviceMessage:
@@ -29,7 +53,7 @@ class DeviceMessage:
 
     def __str__(self):
         return (
-            f"ID:{self.ID} UUID:{':'.join(f'{byte:02X}' for byte in self.UUID)} TYPE: {MSG_TYPES(self.MSG_TYPE)} FW:{self.FIRMWARE_VERSION} "
+            f"DeviceMessage ID:{self.ID} UUID:{':'.join(f'{byte:02X}' for byte in self.UUID)} TYPE: {MSG_TYPES(self.MSG_TYPE)} FW:{self.FIRMWARE_VERSION} "
             + f"BATTERY:{self.BATTERY} DATA:{':'.join(f'{byte:02X}' for byte in self.DATA)} VALID:{self.is_valid}"
         )
 
@@ -45,7 +69,7 @@ class HostMessage:
     def calc_checksum(self) -> list[int]:
         # Calculate the checksum from the data (excluding checksum bytes)
         checksum = sum([self.ID] + self.UUID + [self.MSG_TYPE] + self.DATA)
-        print(f"checksum: {checksum}")
+        #print(f"checksum: {checksum}")
         # Return it as a combination of MSB and LSB
         return [checksum >> 8 & 0xFF, checksum & 0xFF]
 
@@ -54,6 +78,6 @@ class HostMessage:
 
     def __str__(self) -> str:
         return (
-            f"ID:{self.ID} UUID:{':'.join(f'{byte:02X}' for byte in self.UUID)} TYPE: {MSG_TYPES(self.MSG_TYPE)} "
+            f"HostMessage ID:{self.ID} UUID:{':'.join(f'{byte:02X}' for byte in self.UUID)} TYPE: {MSG_TYPES(self.MSG_TYPE)} "
             + f"DATA:{':'.join(f'{byte:02X}' for byte in self.DATA)} CHECKSUM:{self.CHECKSUM[0]:02X}{self.CHECKSUM[1]:02X}"
         )

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Smart Home Devices</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+
+        /* remove list bullets */
+        td ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+    </style>
+    <script>
+        "use strict";
+        window.onload = function () {
+            fetch('http://127.0.0.1:5000/devices')
+                .then(response => response.json())
+                .then(data => populateTable(data))
+                .catch(error => console.error('Error:', error));
+        };
+
+        function populateTable(devices) {
+            const table = document.getElementById('devicesTable');
+            devices.forEach(device => {
+                let row = table.insertRow();
+                row.insertCell().textContent = device.name;
+                row.insertCell().textContent = device.type;
+                // Dynamically creating a <ul> with status properties
+                let statusList = document.createElement('ul');
+                for (let prop in device.status) {
+                    let listItem = document.createElement('li');
+                    listItem.textContent = prop.charAt(0).toUpperCase() + prop.slice(1) + ': ' + device.status[prop];
+                    statusList.appendChild(listItem);
+                }
+                let statusCell = row.insertCell();
+                statusCell.appendChild(statusList);
+                row.insertCell().textContent = device.battery_powered ? Math.round(device.battery_level / 2.55) + '%' : 'N/A';
+                row.insertCell().textContent = device.uuid.join(':');
+                row.insertCell().textContent = device.version;
+            });
+        }
+    </script>
+</head>
+
+<body>
+    <h1>Smart Home Devices</h1>
+
+    <table id="devicesTable">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Battery Percentage</th>
+                <th>UUID</th>
+                <th>Firmware Version</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Devices will be dynamically inserted here -->
+        </tbody>
+    </table>
+
+</body>
+
+</html>
