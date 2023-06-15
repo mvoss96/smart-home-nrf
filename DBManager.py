@@ -1,6 +1,7 @@
 from tinydb import TinyDB, Query
 import random
 import logging
+from threading import Lock
 
 # Configure the root logger
 logging.basicConfig(level=logging.INFO)
@@ -10,12 +11,16 @@ class DBManager:
     def __init__(self):
         # Initialize the TinyDB instance
         self.db = TinyDB("db2.json", indent=4)
+        # Initialize the lock
+        self.db_lock = Lock()
 
         # Initialize the devices_table attribute by calling the initialize_devices_table method
         self.devices_table = self.initialize_devices_table()
 
         # Initialize the uuid attribute by calling the initialize_uuid method
         self.uuid = self.initialize_uuid()
+
+        
 
     def initialize_devices_table(self):
         """
@@ -34,16 +39,17 @@ class DBManager:
         Then it returns this uuid.
         """
         Q = Query()
-        search_result = self.db.search(Q.uuid.exists())
-        if not search_result:
-            uuid = self.generate_uuid()
-            self.db.insert({"uuid": uuid})
-            logger.info(f"Generated and stored UUID: { uuid}")
-            return uuid
-        else:
-            uuid = search_result[0]["uuid"]
-            logger.info(f"Read UUID: {uuid}")
-            return uuid
+        with self.db_lock:
+            search_result = self.db.search(Q.uuid.exists())
+            if not search_result:
+                uuid = self.generate_uuid()
+                self.db.insert({"uuid": uuid})
+                logger.info(f"Generated and stored UUID: { uuid}")
+                return uuid
+            else:
+                uuid = search_result[0]["uuid"]
+                logger.info(f"Read UUID: {uuid}")
+                return uuid
 
     def generate_uuid(self):
         """
@@ -58,7 +64,8 @@ class DBManager:
         Returns the smallest unused ID.
         If no unused ID is found, it returns None.
         """
-        all_ids = set(device["id"] for device in self.devices_table.all())
+        with self.db_lock:
+            all_ids = set(device["id"] for device in self.devices_table.all())
         new_id = next((i for i in range(1, 255) if i not in all_ids), None)
         return new_id
 
@@ -67,9 +74,14 @@ class DBManager:
         Search for a device in the devices table using the given UUID.
         Returns the search result.
         """
-        Q = Query()
-        result = self.devices_table.search(Q.uuid == uuid)
-        return result[0] if len(result) > 0 else None
+        try:
+            with self.db_lock:
+                Q = Query()
+                result = self.devices_table.search(Q.uuid == uuid)
+            return result[0] if len(result) > 0 else None
+        except Exception as e:
+            logger.error(f"Error occurred while searching device by UUID: {e}")
+            return None
     
     def search_device_in_db_by_id(self, device_id: int):
         """
@@ -77,35 +89,73 @@ class DBManager:
         Returns the search result.
         """
         Q = Query()
-        result = self.devices_table.search(Q.id == device_id)
-        return result[0] if len(result) > 0 else None
+        try:
+            with self.db_lock:
+                result = self.devices_table.search(Q.id == device_id)
+            return result[0] if len(result) > 0 else None
+        except Exception as e:
+            logger.error(f"Error occurred while searching device by ID: {e}")
+            return None
 
     def get_all_devices(self):
         """
         Returns all devices in the database.
         """
-        return self.devices_table.all()
+        try:
+            with self.db_lock:
+                return self.devices_table.all()
+        except Exception as e:
+            logger.error(f"Error occurred while getting all devices: {e}")
+            return []
 
     def add_device_to_db(self, device_dict: dict):
         """
         Inserts a new device into the devices table.
         The new device's data is given as a dictionary.
         """
-        self.devices_table.insert(device_dict)
-        logger.info(f"Device {device_dict['type']} added!")
+        try:
+            with self.db_lock:
+                self.devices_table.insert(device_dict)
+            logger.info(f"Device {device_dict['type']} added!")
+        except Exception as e:
+            logger.error(f"Unexpected error while adding device to DB: {e}")
 
     def update_device_in_db(self, device_dict: dict):
         """
         Updates a device's information in the database.
         """
         Q = Query()
-        self.devices_table.update(device_dict, Q.uuid == device_dict['uuid'])
+        try:
+            with self.db_lock:
+                self.devices_table.update(device_dict, Q.uuid == device_dict['uuid'])
+        except Exception as e:
+            logger.error(f"Unexpected error while updating device in DB: {e}")
 
-    def remove_device_from_db(self, device_id: int):
+    def remove_device_from_db(self, device_uuid: int):
         """
-        Remove a device from the devices table using the given ID.
+        Remove a device from the devices table using the given UUID.
         """
-        logger.info(f"Remove Device with id {device_id} from db")
+        logger.info(f"Remove Device with uuid {device_uuid} from db")
         Q = Query()
-        self.devices_table.remove(Q.id == device_id)
+        try:
+            with self.db_lock:
+                self.devices_table.remove(Q.uuid == device_uuid)
+        except Exception as e:
+            logger.error(f"Unexpected error while removing device in DB: {e}")
+
+    def update_device_name(self, device_uuid :list[int], new_name: str):
+        """
+        Change the name of a Device using the given UUID
+        """
+        logger.info(f"Changing Name of Device with uuid {device_uuid} to {new_name}")
+        Q = Query()
+        try:
+            with self.db_lock:
+                # Find the device with the given UUID
+                device = self.search_device_in_db(device_uuid)
+                if device:
+                    device['name'] = new_name
+                    self.update_device_in_db(device)
+        except Exception as e:
+            logger.error(f"Unexpected error while removing device in DB: {e}")
         

@@ -1,6 +1,6 @@
-from flask import Flask, jsonify, render_template, send_from_directory, request
+from flask import Flask, jsonify, render_template, send_from_directory, request, Response
 from flask_cors import CORS
-from threading import Thread
+from threading import Thread, Lock
 from DBManager import DBManager
 import logging
 import os
@@ -20,39 +20,55 @@ class WebServerManager:
 
         # Define routes
         # @self.app.route('/', methods=['GET'])
-        # def home():
+        # def home(self):
         #     """
         #     Endpoint to serve the home page.
         #     """
         #     return send_from_directory(os.getcwd(),'Testpage.html')
 
         @self.app.route('/devices', methods=['GET'])
-        def get_devices():
+        def get_devices(self):
             """
             Endpoint to get all devices.
             """
             try:
                 devices = self.db_manager.get_all_devices()
-                return jsonify(devices)
+                return jsonify(devices), 200
             except Exception as e:
                 logger.error(f"An error occurred while fetching devices: {e}")
                 return jsonify({"error": "An error occurred while fetching devices."}), 500
-
-        @self.app.route('/devices/<int:device_id>', methods=['DELETE'])
-        def remove_device(device_id):
+        
+        @self.app.route('/devices/<device_uuid>/name', methods=['PUT'])
+        def update_device_name(self, device_uuid :str):
             """
-            Endpoint to remove a device.
+            Endpoint to get all devices.
             """
             try:
-                device = self.db_manager.search_device_in_db_by_id(device_id)
-                if device:
-                    self.db_manager.remove_device_from_db(device_id)
-                    return jsonify({"message": "Device removed successfully."}), 200
-                else:
-                    return jsonify({"message": "Device not found."}), 404
+                new_name = request.data
+                print("data:", new_name)
+                return Response()
+                
             except Exception as e:
-                logger.error(f"An error occurred while removing the device: {e}")
-                return jsonify({"error": "An error occurred while removing the device."}), 500
+                logger.error(f"An error occurred while fetching devices: {e}")
+                return jsonify({"error": "An error occurred while fetching devices."}), 500
+ 
+
+
+        # @self.app.route('/devices/<int:device_id>', methods=['DELETE'])
+        # def remove_device(device_id):
+        #     """
+        #     Endpoint to remove a device.
+        #     """
+        #     try:
+        #         device = self.db_manager.search_device_in_db_by_id(device_id)
+        #         if device:
+        #             self.db_manager.remove_device_from_db(device_id)
+        #             return jsonify({"message": "Device removed successfully."}), 200
+        #         else:
+        #             return jsonify({"message": "Device not found."}), 404
+        #     except Exception as e:
+        #         logger.error(f"An error occurred while removing the device: {e}")
+        #         return jsonify({"error": "An error occurred while removing the device."}), 500
 
     def run(self, host='0.0.0.0', port=5000, debug=False):
         """
