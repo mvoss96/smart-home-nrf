@@ -60,6 +60,7 @@ class CommunicationManager:
         Initializes a new Device with the device_manager
         """
         self.device_manager.init_new_device(msg)
+        self.poll_device(msg.UUID)
 
     def listen(self):
         """
@@ -100,12 +101,16 @@ class CommunicationManager:
 
     def poll_device(self, uuid: list[int]):
         """
-        Updates a device's status.
-        It sends a GET message to the device, the device should then respond with a status message
+        Updates a device's status by sending a GET message
+        The device should then respond with a STATUS message
+        Battery powered devices can't be polled.
         """
         device = self.device_manager.db_manager.search_device_in_db(uuid)
         if device is None:
             logger.error(f"Device with uuid:{uuid} not in DB!")
+            return
+        if device["battery_powered"] == True:
+            # Battery powered devices cant be polled.
             return
         msg = HostMessage(uuid=self.device_manager.db_manager.uuid, msg_type=MSG_TYPES.GET, data=[])
         if self.device_manager.send_msg_to_device(device["id"], msg.get_raw()) == None:

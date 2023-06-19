@@ -7,10 +7,12 @@ from threading import Lock
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 class DBManager:
     def __init__(self):
         # Initialize the TinyDB instance
         self.db = TinyDB("db2.json", indent=4)
+
         # Initialize the lock
         self.db_lock = Lock()
 
@@ -19,8 +21,6 @@ class DBManager:
 
         # Initialize the uuid attribute by calling the initialize_uuid method
         self.uuid = self.initialize_uuid()
-
-        
 
     def initialize_devices_table(self):
         """
@@ -69,6 +69,31 @@ class DBManager:
         new_id = next((i for i in range(1, 255) if i not in all_ids), None)
         return new_id
 
+    def set_http_password(self, pw):
+        "Sets the http_password. If an entry in the database already exists it gets updated."
+        Q = Query()
+        existing_record = self.db.search(Q.http_password.exists())
+        if existing_record:
+            if existing_record[0]["http_password"] != pw:
+                self.db.update({"http_password": pw}, Q.http_password.exists())
+                logger.info("Updated http_password")
+        else:
+            self.db.insert({"http_password": pw})
+            logger.info("Set http_password")
+
+    def check_http_password(self, pw):
+        """
+        Returns wether the provided password corresponds to the one in the database
+        """
+        Q = Query()
+        with self.db_lock:
+            search_result = self.db.search(Q.http_password.exists())
+            if not search_result:
+                logger.warn(f"No HTTP password set!")
+                return False
+            else:
+                return search_result[0]["http_password"] == pw
+
     def search_device_in_db(self, uuid: list[int]):
         """
         Search for a device in the devices table using the given UUID.
@@ -82,7 +107,7 @@ class DBManager:
         except Exception as e:
             logger.error(f"Error occurred while searching device by UUID: {e}")
             return None
-    
+
     def search_device_in_db_by_id(self, device_id: int):
         """
         Search for a device in the devices table using the given ID.
@@ -127,7 +152,7 @@ class DBManager:
         Q = Query()
         try:
             with self.db_lock:
-                self.devices_table.update(device_dict, Q.uuid == device_dict['uuid'])
+                self.devices_table.update(device_dict, Q.uuid == device_dict["uuid"])
         except Exception as e:
             logger.error(f"Unexpected error while updating device in DB: {e}")
 
@@ -143,7 +168,7 @@ class DBManager:
         except Exception as e:
             logger.error(f"Unexpected error while removing device in DB: {e}")
 
-    def update_device_name(self, device_uuid :list[int], new_name: str):
+    def update_device_name(self, device_uuid: list[int], new_name: str):
         """
         Change the name of a Device using the given UUID
         """
@@ -153,8 +178,7 @@ class DBManager:
             # Find the device with the given UUID
             device = self.search_device_in_db(device_uuid)
             if device:
-                device['name'] = new_name
+                device["name"] = new_name
                 self.update_device_in_db(device)
         except Exception as e:
             logger.error(f"Unexpected error while removing device in DB: {e}")
-        

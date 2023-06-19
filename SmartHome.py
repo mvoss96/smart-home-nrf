@@ -18,9 +18,10 @@ class SmartHome:
         self.db_manager = DBManager()
         self.device_manager = DeviceManager(self.db_manager)
         self.communication_manager = CommunicationManager(self.device_manager)
-
         # Create the WebServerManager instance and provide a reference to the db_manager
         self.webserver_manager = WebServerManager(self.db_manager)
+
+        self.db_manager.set_http_password("test")
 
     def send_test(self):
         """

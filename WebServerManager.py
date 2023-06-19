@@ -1,6 +1,8 @@
 from flask import Flask, jsonify, render_template, send_from_directory, request, Response
 from flask_cors import CORS
-from threading import Thread, Lock
+from flask_httpauth import HTTPBasicAuth
+from werkzeug.security import generate_password_hash, check_password_hash
+from threading import Thread
 from DBManager import DBManager
 import logging
 import os
@@ -14,6 +16,8 @@ class WebServerManager:
     def __init__(self, db_manager: DBManager):
         # Initialize Flask app
         self.app = Flask(__name__)
+        # Initialize the Authentification
+        self.auth = HTTPBasicAuth()
         CORS(
             self.app,
             resources={
@@ -29,18 +33,13 @@ class WebServerManager:
         self.db_manager = db_manager
         self.server = None
 
+        @self.auth.verify_password
+        def verify_password(username, password):
+            return self.db_manager.check_http_password(password)
+            
         # Define routes
-        # @self.app.before_request
-        # def before_request():
-        #     headers = {
-        #         "Access-Control-Allow-Origin": "*",
-        #         "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-        #         "Access-Control-Allow-Headers": "Content-Type",
-        #     }
-        #     if request.method == "OPTIONS" or request.method == "options":
-        #         return jsonify(headers), 200
-
         # @self.app.route('/', methods=['GET'])
+        # @self.auth.login_required
         # def home():
         #     """
         #     Endpoint to serve the home page.
@@ -48,6 +47,7 @@ class WebServerManager:
         #     return send_from_directory(os.getcwd(),'Testpage.html')
 
         @self.app.route("/devices", methods=["GET"])
+        @self.auth.login_required
         def get_devices():
             """
             Endpoint to get all devices.
@@ -60,6 +60,7 @@ class WebServerManager:
                 return jsonify({"error": "An error occurred while fetching devices."}), 500
 
         @self.app.route("/devices/<device_uuid>/name", methods=["PUT"])
+        @self.auth.login_required
         def rename_device(device_uuid: str):
             """
             Endpoint to get rename a device.
@@ -77,6 +78,7 @@ class WebServerManager:
                 return Response(status=400)
 
         @self.app.route("/devices/<device_uuid>", methods=["DELETE"])
+        @self.auth.login_required
         def remove_device(device_uuid):
             """
             Endpoint to remove a device.
