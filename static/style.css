@@ -1,0 +1,83 @@
+body {
+    font-family: Arial, sans-serif;
+    padding: 20px;
+    background-color: #f9f9f9;
+}
+
+.table-container {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+#devicesTable {
+    display: none;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+}
+
+th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+
+td {
+    background-color: #ffffff;
+}
+
+th,
+td {
+    padding: 10px;
+    border: 1px solid #ddd;
+    text-align: center;
+}
+
+td ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0 10px;
+}
+
+.small-font {
+    font-size: 12px;
+}
+
+/* Updated styles for the login form */
+#loginForm {
+    background-color: #f1f1f1;
+    padding: 20px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
+
+#loginForm label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+#loginForm input[type="password"] {
+    padding: 8px;
+    border-radius: 3px;
+    border: 1px solid #ccc;
+    width: 200px;
+    margin-bottom: 10px;
+}
+
+#loginForm input[type="submit"] {
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+#loginForm input[type="submit"]:hover {
+    background-color: #45a049;
+}

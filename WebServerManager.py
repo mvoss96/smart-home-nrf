@@ -18,6 +18,7 @@ class WebServerManager:
     def __init__(self, db_manager: DBManager):
         # Initialize Flask app
         self.app = Flask(__name__)
+        self.app.config['TEMPLATES_AUTO_RELOAD'] = True
         # Initialize the Authentification
         self.auth = HTTPBasicAuth()
         CORS(
@@ -35,19 +36,18 @@ class WebServerManager:
         self.db_manager = db_manager
         self.server = None
 
+        # Define routes
         @self.auth.verify_password
         def verify_password(username, password):
             print(f"user:{username} pw:{password}")
             return self.db_manager.check_http_password(password)
 
-        # Define routes
-        # @self.app.route('/', methods=['GET'])
-        # @self.auth.login_required
-        # def home():
-        #     """
-        #     Endpoint to serve the home page.
-        #     """
-        #     return send_from_directory(os.getcwd(),'Testpage.html')
+        @self.app.route("/", methods=["GET"])
+        def home():
+            """
+            Endpoint to serve the home page.
+            """
+            return render_template("index.html")
 
         @self.app.route("/stream")
         @self.auth.login_required
@@ -62,10 +62,9 @@ class WebServerManager:
                         logger.error(f"An error occurred while fetching devices: {e}")
                         yield f"data: {{'error': 'An error occurred while fetching devices.'}}\n\n"
                     time.sleep(5)
-            
+
             logger.info("Received a request for /stream endpoint")
             return Response(generate(), mimetype="text/event-stream")
-
 
         @self.app.route("/devices", methods=["GET"])
         @self.auth.login_required
