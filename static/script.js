@@ -23,7 +23,7 @@ function submitLogin(event) {
 async function checkLogin() {
     const loginSuccessful = await fetchAndPopulate();
     if (loginSuccessful) {
-        setInterval(fetchAndPopulate, 5000);
+        setInterval(fetchAndPopulate, 3000);
         document.getElementById("loginForm").style.display = "none";
         document.getElementById("devicesTable").style.display = "block";
     }

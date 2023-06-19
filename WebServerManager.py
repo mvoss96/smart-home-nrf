@@ -1,7 +1,6 @@
-from flask import Flask, jsonify, render_template, send_from_directory, stream_with_context, request, Response
+from flask import Flask, jsonify, render_template, request, Response
 from flask_cors import CORS
 from flask_httpauth import HTTPBasicAuth
-from werkzeug.security import generate_password_hash, check_password_hash
 from threading import Thread
 from DBManager import DBManager
 from CommunicationManager import CommunicationManager
@@ -39,7 +38,7 @@ class WebServerManager:
         # Define routes
         @self.auth.verify_password
         def verify_password(username, password):
-            print(f"user:{username} pw:{password}")
+            #print(f"user:{username} pw:{password}")
             return self.db_manager.check_http_password(password)
 
         @self.app.route("/", methods=["GET"])
