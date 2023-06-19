@@ -1,10 +1,12 @@
-from flask import Flask, jsonify, render_template, send_from_directory, request, Response
+from flask import Flask, jsonify, render_template, send_from_directory, stream_with_context, request, Response
 from flask_cors import CORS
 from flask_httpauth import HTTPBasicAuth
 from werkzeug.security import generate_password_hash, check_password_hash
 from threading import Thread
 from DBManager import DBManager
 import logging
+import json
+import time
 import os
 
 # Configure the root logger
@@ -35,8 +37,9 @@ class WebServerManager:
 
         @self.auth.verify_password
         def verify_password(username, password):
+            print(f"user:{username} pw:{password}")
             return self.db_manager.check_http_password(password)
-            
+
         # Define routes
         # @self.app.route('/', methods=['GET'])
         # @self.auth.login_required
@@ -45,6 +48,24 @@ class WebServerManager:
         #     Endpoint to serve the home page.
         #     """
         #     return send_from_directory(os.getcwd(),'Testpage.html')
+
+        @self.app.route("/stream")
+        @self.auth.login_required
+        def stream():
+            def generate():
+                while True:
+                    try:
+                        devices = self.db_manager.get_all_devices()
+                        logger.info(f"Devices fetched: {devices}")
+                        yield f"data: {json.dumps(devices)}\n\n"
+                    except Exception as e:
+                        logger.error(f"An error occurred while fetching devices: {e}")
+                        yield f"data: {{'error': 'An error occurred while fetching devices.'}}\n\n"
+                    time.sleep(5)
+            
+            logger.info("Received a request for /stream endpoint")
+            return Response(generate(), mimetype="text/event-stream")
+
 
         @self.app.route("/devices", methods=["GET"])
         @self.auth.login_required
