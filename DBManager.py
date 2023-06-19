@@ -182,3 +182,4 @@ class DBManager:
                 self.update_device_in_db(device)
         except Exception as e:
             logger.error(f"Unexpected error while renaming device in DB: {e}")
+

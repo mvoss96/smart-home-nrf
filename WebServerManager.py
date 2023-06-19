@@ -4,10 +4,10 @@ from flask_httpauth import HTTPBasicAuth
 from werkzeug.security import generate_password_hash, check_password_hash
 from threading import Thread
 from DBManager import DBManager
+from CommunicationManager import CommunicationManager
 import logging
 import json
 import time
-import os
 
 # Configure the root logger
 logging.basicConfig(level=logging.INFO)
@@ -15,25 +15,25 @@ logger = logging.getLogger(__name__)
 
 
 class WebServerManager:
-    def __init__(self, db_manager: DBManager):
+    def __init__(self, db_manager: DBManager, comm_manager: CommunicationManager):
         # Initialize Flask app
         self.app = Flask(__name__)
         self.app.config["TEMPLATES_AUTO_RELOAD"] = True
         # Initialize the Authentification
         self.auth = HTTPBasicAuth()
-        CORS(
-            self.app,
-            resources={
-                r"*": {
-                    "origins": "*",
-                    "methods": ["GET", "HEAD", "POST", "OPTIONS", "PUT", "PATCH", "DELETE"],
-                    "allow_headers": "*",
-                }
-            },
-        )
-
-        # CORS(self.app, origins=["http://localhost:5500"])
+        # Set up CORS if wanted
+        # CORS(
+        #     self.app,
+        #     resources={
+        #         r"*": {
+        #             "origins": "*",
+        #             "methods": ["GET", "HEAD", "POST", "OPTIONS", "PUT", "PATCH", "DELETE"],
+        #             "allow_headers": "*",
+        #         }
+        #     },
+        # )
         self.db_manager = db_manager
+        self.comm_manager = comm_manager
         self.server = None
 
         # Define routes
@@ -72,11 +72,10 @@ class WebServerManager:
             """
             Endpoint to get all devices.
             """
-            try:
-                devices = self.db_manager.get_all_devices()
+            devices = self.fetch_devices()
+            if devices is not None:
                 return jsonify(devices), 200
-            except Exception as e:
-                logger.error(f"An error occurred while fetching devices: {e}")
+            else:
                 return jsonify({"error": "An error occurred while fetching devices."}), 500
 
         @self.app.route("/devices/<device_uuid>/name", methods=["PUT"])
@@ -86,16 +85,11 @@ class WebServerManager:
             Endpoint to get rename a device.
             """
             data = request.json
-            if data != None:
-                new_name = data.get("name")
-                try:
-                    uuid = [int(x) for x in device_uuid.split("-")]
-                except ValueError:
-                    return Response(status=400)
-                self.db_manager.update_device_name(uuid, new_name)
-                return Response()
-            else:
-                return Response(status=400)
+            uuid = self.parse_uuid(device_uuid)
+            if uuid is None or data is None:
+                return Response(status=400, response="Empty request or unable to parse UUID")
+            self.db_manager.update_device_name(uuid, data.get("name"))
+            return Response()
 
         @self.app.route("/devices/<device_uuid>", methods=["DELETE"])
         @self.auth.login_required
@@ -103,10 +97,9 @@ class WebServerManager:
             """
             Endpoint to remove a device.
             """
-            try:
-                uuid = [int(x) for x in device_uuid.split("-")]
-            except ValueError:
-                return Response(status=400)
+            uuid = self.parse_uuid(device_uuid)
+            if uuid is None:
+                return Response(status=400, response="Unable to parse UUID")
             self.db_manager.remove_device_from_db(uuid)
             return Response()
 
@@ -116,32 +109,70 @@ class WebServerManager:
             """
             Endpoint to get the status of a specific device
             """
-            try:
-                uuid = [int(x) for x in device_uuid.split("-")]
-            except ValueError:
-                return Response(status=400)
+            uuid = self.parse_uuid(device_uuid)
+            if uuid is None:
+                return Response(status=400, response="Unable to parse UUID")
             device = self.db_manager.search_device_in_db(uuid)
+            if device == None:
+                return Response(status=400, response="Device not found")
             return jsonify(device), 200
 
         @self.app.route("/devices/<device_uuid>/<parameter>", methods=["GET"])
         @self.auth.login_required
-        def get_device_param(device_uuid, parameter):
+        def gt_device_param(device_uuid, parameter):
             """
-            Endpoint to get the a single parameter of a specific device
+            Endpoint to get a single parameter of a specific device
             """
-            try:
-                uuid = [int(x) for x in device_uuid.split("-")]
-            except ValueError:
-                return Response(status=400)
+            uuid = self.parse_uuid(device_uuid)
+            if uuid is None:
+                return Response(status=400, response="Unable to parse UUID")
             device = self.db_manager.search_device_in_db(uuid)
             if device == None:
-                return Response(status=400)
+                return Response(status=400, response="Device not found")
             status = device.get("status")
             if status == None:
-                return Response(status=400)
+                return Response(status=400, response="Device does not have a status")
             if parameter == "status":
                 return jsonify(status), 200
             return jsonify(status.get(parameter)), 200
+
+        @self.app.route("/devices/<device_uuid>/<parameter>", methods=["PUT"])
+        @self.auth.login_required
+        def set_device_param(device_uuid, parameter):
+            """
+            Endpoint to set a single parameter of a specific device
+            """
+            data = request.json
+            uuid = self.parse_uuid(device_uuid)
+            if uuid is None or data is None:
+                return Response(status=400, response="Empty request or unable to parse UUID")
+            new_val = data.get("value")
+            device = self.db_manager.search_device_in_db(uuid)
+            if device == None:
+                return Response(status=400, response="Device not found")
+            status = device.get("status")
+            if status == None:
+                return Response(status=400, response="Device does not have a status")
+            if parameter not in status:
+                return Response(status=400, response="Unknown parameter")
+            if not self.comm_manager.set_device_param(uuid, parameter, str(new_val)):
+                return Response(status=400, response="Unable to parse request")
+            return Response()
+
+    def parse_uuid(self, device_uuid):
+        try:
+            uuid = [int(x) for x in device_uuid.split("-")]
+            return uuid
+        except ValueError:
+            return None
+
+    def fetch_devices(self):
+        try:
+            devices = self.db_manager.get_all_devices()
+            return devices
+        except Exception as e:
+            logger.error(f"An error occurred while fetching devices: {e}")
+            return None
 
     def run(self, host="0.0.0.0", port=5000, debug=False):
         """
