@@ -18,7 +18,7 @@ class WebServerManager:
     def __init__(self, db_manager: DBManager):
         # Initialize Flask app
         self.app = Flask(__name__)
-        self.app.config['TEMPLATES_AUTO_RELOAD'] = True
+        self.app.config["TEMPLATES_AUTO_RELOAD"] = True
         # Initialize the Authentification
         self.auth = HTTPBasicAuth()
         CORS(
@@ -109,6 +109,39 @@ class WebServerManager:
                 return Response(status=400)
             self.db_manager.remove_device_from_db(uuid)
             return Response()
+
+        @self.app.route("/devices/<device_uuid>", methods=["GET"])
+        @self.auth.login_required
+        def get_device(device_uuid):
+            """
+            Endpoint to get the status of a specific device
+            """
+            try:
+                uuid = [int(x) for x in device_uuid.split("-")]
+            except ValueError:
+                return Response(status=400)
+            device = self.db_manager.search_device_in_db(uuid)
+            return jsonify(device), 200
+
+        @self.app.route("/devices/<device_uuid>/<parameter>", methods=["GET"])
+        @self.auth.login_required
+        def get_device_param(device_uuid, parameter):
+            """
+            Endpoint to get the a single parameter of a specific device
+            """
+            try:
+                uuid = [int(x) for x in device_uuid.split("-")]
+            except ValueError:
+                return Response(status=400)
+            device = self.db_manager.search_device_in_db(uuid)
+            if device == None:
+                return Response(status=400)
+            status = device.get("status")
+            if status == None:
+                return Response(status=400)
+            if parameter == "status":
+                return jsonify(status), 200
+            return jsonify(status.get(parameter)), 200
 
     def run(self, host="0.0.0.0", port=5000, debug=False):
         """
