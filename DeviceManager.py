@@ -4,6 +4,7 @@ import time
 import logging
 from typing import Type, Optional
 from DBManager import DBManager
+from threading import Lock
 
 # Configure the root logger
 logging.basicConfig(level=logging.INFO)
@@ -14,6 +15,9 @@ class DeviceManager:
     def __init__(self, db_manager: DBManager):
         # Initializing the NRF24Device
         self.device = NRF24Device("/dev/ttyUSB0", channel=101, address=0)
+
+        # Initialize the lock
+        self.comm_lock = Lock()
 
         # Reference to the DBManager instance to handle DB operations
         self.db_manager = db_manager
@@ -26,11 +30,12 @@ class DeviceManager:
         # Get the class object by name
         return next((cls for cls in supported_devices if cls.__name__ == device_type))
 
-    def send_msg_to_device(self, device_id: int, raw_msg: list[int]):
+    def send_msg_to_device(self, device_id: int, raw_msg: list[int], require_ack = True):
         """
         Sends a message to a device given its device ID and the raw message data.
         """
-        return self.device.send_msg(device_id, raw_msg)
+        with self.comm_lock:
+            return self.device.send_msg(device_id, raw_msg, require_ack)
 
     def init_new_device(self, msg: DeviceMessage):
         """
@@ -83,4 +88,5 @@ class DeviceManager:
         Get a device message from the NRF24Device.
         The method returns None if no message is available.
         """
-        return self.device.get_message()
+        with self.comm_lock:
+            return self.device.get_message()

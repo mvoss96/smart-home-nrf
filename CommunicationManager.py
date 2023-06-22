@@ -138,5 +138,5 @@ class CommunicationManager:
         )
         if self.device_manager.send_msg_to_device(device["id"], msg.get_raw()) == None:
             logger.error(f"Failed to send SET message to device:{device['type']} with uuid:{device['uuid']}!")
-        self.poll_device(uuid)
+        #self.poll_device(uuid)
         return True
