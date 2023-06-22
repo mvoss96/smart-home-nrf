@@ -18,9 +18,11 @@ class CHANGE_TYPES(Enum):
 
 
 class SetMessage:
-    def __init__(self, index: int, changeType: CHANGE_TYPES, value : list[int] = [0]):
+    def __init__(self, index: int, changeType: CHANGE_TYPES, value : list[int] | int = [0]):
         self.varIndex = index
         self.changeType = changeType 
+        if not isinstance(value, list):
+            value = [value]
         self.valueSize= len(value)
         self.newValue = value
 
@@ -51,7 +53,7 @@ class DeviceMessage:
             self.raw_data[:-2]
         )  # Calculate the checksum from the data (excluding checksum bytes)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"DeviceMessage ID:{self.ID} UUID:{':'.join(f'{byte:02X}' for byte in self.UUID)} TYPE: {MSG_TYPES(self.MSG_TYPE)} FW:{self.FIRMWARE_VERSION} "
             + f"BATTERY:{self.BATTERY} DATA:{':'.join(f'{byte:02X}' for byte in self.DATA)} VALID:{self.is_valid}"

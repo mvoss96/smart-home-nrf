@@ -27,19 +27,16 @@ class CommunicationManager:
             return
 
         # Check if the class exists in the supported_devices list
-        if not any(hasattr(cls, "__name__") and cls.__name__ == device["type"] for cls in supported_devices):
+        class_obj = self.device_manager.get_supported_device(device["type"])
+        if class_obj == None:
             logger.error(f"Unsupported Device of type:{device['type']} in DB!")
             return
-
-        if device["battery_powered"]:
-            device["battery_level"] = msg.BATTERY
-
-        # Get the class object by name
-        class_obj = next((cls for cls in supported_devices if cls.__name__ == device["type"]))
         # Create an instance of the class
         instance = class_obj(msg.DATA)
         # print(instance.get_status())
         # Update the status key for the device using the device variable
+        if device["battery_powered"]:
+            device["battery_level"] = msg.BATTERY
         device["status"] = instance.get_status()
         device["last_seen"] = time.strftime("%Y-%m-%d %H:%M:%S")
         self.device_manager.db_manager.update_device_in_db(device)
@@ -115,3 +112,28 @@ class CommunicationManager:
         msg = HostMessage(uuid=self.device_manager.db_manager.uuid, msg_type=MSG_TYPES.GET, data=[])
         if self.device_manager.send_msg_to_device(device["id"], msg.get_raw()) == None:
             logger.error(f"Failed to send GET message to device:{device['type']} with uuid:{device['uuid']}!")
+
+    def set_device_param(self, uuid: list[int], parameter: str, new_val: str) -> bool:
+        """
+        Send a SET message to a device to change a status parameter.
+        Returns False if no SET message could be created for the given parameter and value
+        """
+        device = self.device_manager.db_manager.search_device_in_db(uuid)
+        if device is None:
+            logger.error(f"Device with uuid:{uuid} not in DB!")
+            return False
+        class_obj = self.device_manager.get_supported_device(device["type"])
+        if class_obj is None:
+            return False
+        set_msg = class_obj.set_parameter(parameter, new_val)
+        if set_msg is None:
+            return False
+        msg = HostMessage(
+            uuid=self.device_manager.db_manager.uuid,
+            msg_type=MSG_TYPES.SET,
+            data=set_msg.get_raw(),
+        )
+        if self.device_manager.send_msg_to_device(device["id"], msg.get_raw()) == None:
+            logger.error(f"Failed to send SET message to device:{device['type']} with uuid:{device['uuid']}!")
+        self.poll_device(uuid)
+        return True

@@ -11,7 +11,7 @@ function submitLogin(event) {
     event.preventDefault();  // Prevent the form from submitting normally.
 
     const password = document.getElementById('password').value;
-    console.log(`submitted ${password}`)
+    //console.log(`submitted ${password}`)
 
     // Base64 encode the username and password for Basic Auth.
     headers.set('Authorization', 'Basic ' + btoa(static_username + ":" + password));
@@ -23,7 +23,7 @@ function submitLogin(event) {
 async function checkLogin() {
     const loginSuccessful = await fetchAndPopulate();
     if (loginSuccessful) {
-        setInterval(fetchAndPopulate, 5000);
+        setInterval(fetchAndPopulate, 3000);
         document.getElementById("loginForm").style.display = "none";
         document.getElementById("devicesTable").style.display = "block";
     }

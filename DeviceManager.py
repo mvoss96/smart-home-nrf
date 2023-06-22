@@ -1,12 +1,14 @@
 from nrf24USB import NRF24Device
-from nrf24Smart import DeviceMessage, HostMessage, MSG_TYPES, supported_devices
+from nrf24Smart import DeviceMessage, HostMessage, MSG_TYPES, supported_devices, DeviceStatus
 import time
 import logging
+from typing import Type, Optional
 from DBManager import DBManager
 
 # Configure the root logger
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 class DeviceManager:
     def __init__(self, db_manager: DBManager):
@@ -16,7 +18,15 @@ class DeviceManager:
         # Reference to the DBManager instance to handle DB operations
         self.db_manager = db_manager
 
-    def send_msg_to_device(self, device_id :int, raw_msg: list[int]):
+    def get_supported_device(self, device_type: str) -> Optional[Type[DeviceStatus]]:
+        # Check if the class exists in the supported_devices list
+        if not any(hasattr(cls, "__name__") and cls.__name__ == device_type for cls in supported_devices):
+            logger.error(f"Device type {device_type} not supported!")
+            return None
+        # Get the class object by name
+        return next((cls for cls in supported_devices if cls.__name__ == device_type))
+
+    def send_msg_to_device(self, device_id: int, raw_msg: list[int]):
         """
         Sends a message to a device given its device ID and the raw message data.
         """
@@ -31,8 +41,7 @@ class DeviceManager:
         logger.info(f"New Device: {device_type} {msg}")
 
         # Check if the class exists in the supported_devices list
-        if not any(hasattr(cls, "__name__") and cls.__name__ == device_type for cls in supported_devices):
-            logger.warn(f"Device type {device_type} not supported!")
+        if self.get_supported_device(device_type) == None:
             return
 
         # Check if a device with the UUID exists
