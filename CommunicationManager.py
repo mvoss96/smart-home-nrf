@@ -32,14 +32,17 @@ class CommunicationManager:
             logger.error(f"Unsupported Device of type:{device['type']} in DB!")
             return
         # Create an instance of the class
-        instance = class_obj(msg.DATA)
-        # print(instance.get_status())
-        # Update the status key for the device using the device variable
-        if device["battery_powered"]:
-            device["battery_level"] = msg.BATTERY
-        device["status"] = instance.get_status()
-        device["last_seen"] = time.strftime("%Y-%m-%d %H:%M:%S")
-        self.device_manager.db_manager.update_device_in_db(device)
+        try:
+            instance = class_obj(msg.DATA)
+            
+            # Update the status key for the device using the device variable
+            if device["battery_powered"]:
+                device["battery_level"] = msg.BATTERY
+            device["status"] = instance.get_status()
+            device["last_seen"] = time.strftime("%Y-%m-%d %H:%M:%S")
+            self.device_manager.db_manager.update_device_in_db(device)
+        except Exception as err:
+            logging.error(err)
 
     def handle_boot_message(self, msg: DeviceMessage):
         """

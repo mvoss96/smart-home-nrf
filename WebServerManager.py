@@ -152,8 +152,6 @@ class WebServerManager:
             status = device.get("status")
             if status == None:
                 return Response(status=400, response="Device does not have a status")
-            if parameter not in status:
-                return Response(status=400, response="Unknown parameter")
             if not self.comm_manager.set_device_param(uuid, parameter, str(new_val)):
                 return Response(status=400, response="Unable to parse request")
             return Response()

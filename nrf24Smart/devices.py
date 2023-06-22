@@ -1,9 +1,12 @@
 import time
 from typing import Type, Optional
+import struct
 from nrf24Smart import SetMessage, CHANGE_TYPES
 
 
 class DeviceStatus:
+    settable_parameters = []
+
     def __init__(self, data: list[int]):
         raise NotImplementedError()
 
@@ -24,7 +27,31 @@ class DeviceStatus:
             return None
 
     @classmethod
-    def parse_to_byte(cls, value: str) -> Optional[int]:
+    def parse_float(cls, value: list[int]) -> Optional[float]:
+        try:
+            # Convert list of ints to bytes
+            bytes_object = bytes(value)
+            # Unpack bytes to float
+            single_float = struct.unpack("f", bytes_object)[0]
+            return single_float
+        except Exception:
+            return None
+
+    @classmethod
+    def parse_int(cls, value: list[int]) -> Optional[int]:
+        try:
+            # Convert list of ints to bytes
+            bytes_object = bytes(value)
+
+            # Unpack bytes to int
+            single_int = struct.unpack("i", bytes_object)[0]
+
+            return single_int
+        except Exception:
+            return None
+
+    @classmethod
+    def parse_byte(cls, value: str) -> Optional[int]:
         try:
             # Try to convert the value to an integer
             num = int(value)
@@ -44,46 +71,63 @@ class DeviceStatus:
                 # If it still fails, then it's not a valid input
                 return None
 
+    @classmethod
+    def parse_bytes(cls, value: str) -> list[int]:
+        parsed_bytes = []
+        for substr in value.split(","):
+            b = cls.parse_byte(substr)
+            if b == None:
+                return []
+            parsed_bytes.append(b)
+        return parsed_bytes
+
 
 class LedController3Channel(DeviceStatus):
+    settable_parameters = ["power", "brightness", "ch_1", "ch_2", "ch_3", "rgb"]
+
     def __init__(self, data: list[int]):
-        if len(data) != 5:
-            print("Incompatible Status for LedController3Channel")
-            return
+        self.valid = False
+        if len(data) != 9:
+            raise ValueError("Incompatible Status for LedController3Channel")
+        self.valid = True
         self.power = data[0]
         self.brightness = data[1]
         self.ch_1 = data[2]
         self.ch_2 = data[3]
         self.ch_3 = data[4]
+        ps = self.parse_float(data[5:9])
+        self.power_scale = round(ps, 2) if ps is not None else None
         self.timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
 
     def get_status(self) -> dict:
-        return {
+        status = {
             "power": self.power,
             "brightness": self.brightness,
             "ch_1": self.ch_1,
             "ch_2": self.ch_2,
-            "ch_2": self.ch_3,
+            "ch_3": self.ch_3,
+            "power_Scale": self.power_scale,
             "timestamp": self.timestamp,
         }
+        return status
 
     @classmethod
     def set_parameter(cls, param: str, new_val: str) -> Optional[SetMessage]:
+        index = cls.settable_parameters.index(param)
         if param == "power":
-            index = 0
             data = cls.parse_bool(new_val)
         elif param == "brightness":
-            index = 1
-            data = cls.parse_to_byte(new_val)
+            data = cls.parse_byte(new_val)
         elif param == "ch_1":
-            index = 2
-            data = cls.parse_to_byte(new_val)
+            data = cls.parse_byte(new_val)
         elif param == "ch_2":
-            index = 3
-            data = cls.parse_to_byte(new_val)
+            data = cls.parse_byte(new_val)
         elif param == "ch_3":
-            index = 4
-            data = cls.parse_to_byte(new_val)
+            data = cls.parse_byte(new_val)
+        elif param == "rgb":
+            data = cls.parse_bytes(new_val)
+            if len(data) != 3:
+                data = None
         else:
             return None
         if data is None:
