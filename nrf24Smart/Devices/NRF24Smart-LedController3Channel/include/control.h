@@ -7,6 +7,7 @@ struct Status{
     uint8_t ch_1 = 255;
     uint8_t ch_2 = 255;
     uint8_t ch_3 = 255;
+    float   powerScale = 1.0;
 };
 
 extern Status status;

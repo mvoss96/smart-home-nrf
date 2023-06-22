@@ -67,7 +67,10 @@ void loop()
     ServerPacket pck(buf, packetSize);
     if (pck.isValid())
     {
-      blink(PIN_LED2, 1, 100);
+      if (LED_BLINK_ONMESSAGE)
+      {
+        blink(PIN_LED2, 1, 100);
+      }
       switch ((MSG_TYPES)pck.getTYPE())
       {
       case MSG_TYPES::RESET:
@@ -79,9 +82,9 @@ void loop()
         sendStatus();
         break;
       case MSG_TYPES::SET:
-      Serial.println("-> SET message received... ");
-      setStatus(pck.getDATA(), pck.getSize());
-      break;
+        Serial.println("-> SET message received... ");
+        setStatus(pck.getDATA(), pck.getSize());
+        break;
       default:
         Serial.println("-> Unsupported message received!");
       }

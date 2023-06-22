@@ -14,6 +14,21 @@ int pins[] = {PIN_OUTPUT_R, PIN_OUTPUT_G, PIN_OUTPUT_B};
 // Function to update LED outputs based on the current status
 void setOutput()
 {
+    int channelTotal = 0;
+
+    // Calculate the channelTotal
+    for (int i = 0; i < 3; i++)
+    {
+        channelTotal += *channels[i];
+    }
+
+    // Calculate the power scaling factor
+    //Serial.print("total channel: ");
+    //Serial.println(channelTotal);
+    status.powerScale = min(1, (float)OUTPUT_POWER_LIMIT / channelTotal);
+    //Serial.print("power scale: ");
+    //Serial.println(status.powerScale);
+
     // Loop over each color channel
     for (int i = 0; i < 3; i++)
     {
@@ -22,10 +37,10 @@ void setOutput()
         {
             digitalWrite(pins[i], LOW);
         }
-        // Else, set output according to brightness and color
+        // Else, set output according to brightness, color and power limit
         else
         {
-            analogWrite(pins[i], *channels[i] * status.brightness / 255);
+            analogWrite(pins[i], *channels[i] * status.powerScale * (float)status.brightness / 255);
         }
     }
 }
@@ -45,7 +60,7 @@ void setPower(bool newPwr)
 // Function to set brightness
 void setBrightness(uint8_t newBr)
 {
-    status.brightness = max(1, newBr);
+    status.brightness = max((uint8_t)(1 / status.powerScale), newBr);
 }
 
 // Function to increase brightness, taking care not to exceed 255

@@ -13,7 +13,10 @@ NRFLite _radio;
 // Send fucntion with LED blink
 uint8_t nrfSend(uint8_t toRadioId, void *data, uint8_t length, NRFLite::SendType sendType = NRFLite::REQUIRE_ACK)
 {
-    blink(PIN_LED1, 1, 100);
+    if (LED_BLINK_ONMESSAGE)
+    {
+        blink(PIN_LED1, 1, 100);
+    }
     return _radio.send(SERVER_RADIO_ID, data, length, sendType);
 }
 
@@ -153,7 +156,8 @@ void connectToServer()
     nrfSend(SERVER_RADIO_ID, &bootpck, bootpck.getSize());
 }
 
-void sendStatus(){
-    ClientPacket pck(radioID, MSG_TYPES::STATUS, (uint8_t*)&status, sizeof(status));
-     nrfSend(SERVER_RADIO_ID, &pck, pck.getSize());
+void sendStatus()
+{
+    ClientPacket pck(radioID, MSG_TYPES::STATUS, (uint8_t *)&status, sizeof(status));
+    nrfSend(SERVER_RADIO_ID, &pck, pck.getSize());
 }
