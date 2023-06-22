@@ -14,7 +14,7 @@ class DeviceStatus:
         raise NotImplementedError()
 
     @classmethod
-    def set_parameter(cls, param: str, new_val: str) -> Optional[SetMessage]:
+    def create_set_message(cls, param: str, new_val: str) -> Optional[SetMessage]:
         raise NotImplementedError()
 
     @classmethod
@@ -112,7 +112,7 @@ class LedController3Channel(DeviceStatus):
         return status
 
     @classmethod
-    def set_parameter(cls, param: str, new_val: str) -> Optional[SetMessage]:
+    def create_set_message(cls, param: str, new_val: str) -> Optional[SetMessage]:
         index = cls.settable_parameters.index(param)
         if param == "power":
             data = cls.parse_bool(new_val)
@@ -133,6 +133,7 @@ class LedController3Channel(DeviceStatus):
         if data is None:
             return None
         return SetMessage(index, CHANGE_TYPES.SET, data)
+
 
 
 supported_devices = [LedController3Channel]

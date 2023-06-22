@@ -1,5 +1,6 @@
 from nrf24Smart import DeviceMessage, HostMessage, MSG_TYPES, SetMessage, CHANGE_TYPES, supported_devices
 import time
+from datetime import datetime
 from DeviceManager import DeviceManager
 import logging
 
@@ -15,13 +16,14 @@ class CommunicationManager:
 
         # Reference to the DeviceManager instance to handle device operations
         self.device_manager = device_manager
+        self.db_manager = self.device_manager.db_manager
 
     def handle_status_message(self, msg: DeviceMessage):
         """
         Updates the status of a device given a DeviceMessage.
         The method fetches the device from the database, checks its type and updates its status.
         """
-        device = self.device_manager.db_manager.search_device_in_db(msg.UUID)
+        device = self.db_manager.search_device_in_db(msg.UUID)
         if device == None:
             logger.error(f"Device with uuid:{msg.UUID} not in DB!")
             return
@@ -34,13 +36,12 @@ class CommunicationManager:
         # Create an instance of the class
         try:
             instance = class_obj(msg.DATA)
-            
             # Update the status key for the device using the device variable
             if device["battery_powered"]:
                 device["battery_level"] = msg.BATTERY
             device["status"] = instance.get_status()
             device["last_seen"] = time.strftime("%Y-%m-%d %H:%M:%S")
-            self.device_manager.db_manager.update_device_in_db(device)
+            self.db_manager.update_device_in_db(device)
         except Exception as err:
             logging.error(err)
 
@@ -50,9 +51,9 @@ class CommunicationManager:
         It validates that the UUID of the server corresponds to the stored UUID reported by the Device
         """
         logger.info(f"BOOT message from device:{msg.UUID}")
-        if msg.DATA != self.device_manager.db_manager.uuid:
+        if msg.DATA != self.db_manager.uuid:
             logger.warning(
-                f"Mismatched UUID! Device with uuid:{msg.UUID} reports server uuid:{msg.DATA} instead of {self.device_manager.db_manager.uuid}"
+                f"Mismatched UUID! Device with uuid:{msg.UUID} reports server uuid:{msg.DATA} instead of {self.db_manager.uuid}"
             )
 
     def handle_init_mesage(self, msg: DeviceMessage):
@@ -67,35 +68,65 @@ class CommunicationManager:
         Listens for incoming messages.
         If a message is available, it processes the message according to its type.
         """
-        data = self.device_manager.get_device_message()
-        if data:
-            # print(data)
-            msg = DeviceMessage(data)
-            if not msg.is_valid:
-                logger.warning("invalid message!")
-                return
-            if msg.MSG_TYPE == MSG_TYPES.INIT.value:
-                self.handle_init_mesage(msg)
-            elif msg.MSG_TYPE == MSG_TYPES.BOOT.value:
-                self.handle_boot_message(msg)
-            elif msg.MSG_TYPE == MSG_TYPES.STATUS.value:
-                self.handle_status_message(msg)
+        while True:
+            data = self.device_manager.get_device_message()
+            if data:
+                #print(data)
+                msg = DeviceMessage(data)
+                if not msg.is_valid:
+                    logger.warning("invalid message!")
+                    return
+                if msg.MSG_TYPE == MSG_TYPES.INIT.value:
+                    self.handle_init_mesage(msg)
+                elif msg.MSG_TYPE == MSG_TYPES.BOOT.value:
+                    self.handle_boot_message(msg)
+                elif msg.MSG_TYPE == MSG_TYPES.STATUS.value:
+                    self.handle_status_message(msg)
+                else:
+                    logger.info("->", msg)
+
             else:
-                logger.info("->", msg)
+                time.sleep(0.01)
 
-        else:
-            time.sleep(0.01)
-
-    def poll_all_devices(self):
+    def update_all_devices(self):
         """
-        Updates the status of all devices if at least one second has passed since the last update.
+        Send any pending status changes in set_status to the devices.
+        Poll all devices if at least one second has passed since the last update.
         """
         current_time = time.time()
-        if current_time - self.last_update_time < 2.0:  # less than one second has passed
-            return  # Return without doing anything
-        for item in self.device_manager.db_manager.get_all_devices():
-            # print(f"update status of device:{item['type']} uuid:{item['uuid']}")
-            self.poll_device(item["uuid"])
+        # if current_time - self.last_update_time < 0.5:
+        #     return  # Return without doing anything if called to soon
+        for device in self.db_manager.get_all_devices():
+            uuid = device["uuid"]
+            #print(f"update status of device:{device['type']} uuid:{uuid}")
+            if "set_status" in device and device.get("set_status"):
+                if (class_obj := self.device_manager.get_supported_device(device["type"])) == None:
+                    logging.error("Database contains not supported device")
+                    continue
+                successfull_updates = []
+                for key, value in device["set_status"].items():
+                    #print(f"sending set_status param {key} {value}")
+                    if (set_message := class_obj.create_set_message(key, value)) == None:
+                        logging.error("Database contains not supported set_message parameters")
+                        continue
+                    msg = HostMessage(uuid=self.db_manager.uuid, msg_type=MSG_TYPES.SET, data=set_message.get_raw())
+                    if self.device_manager.send_msg_to_device(device["id"], msg.get_raw()) == None:
+                        logger.error(f"Failed to send SET message to device:{device['type']} with uuid:{device['uuid']}!")
+                    else:
+                        successfull_updates.append(key)
+
+                for key in successfull_updates:
+                    del device["set_status"][key]
+                self.db_manager.update_device_in_db(device)
+
+            try:
+                timestamp = datetime.strptime(device["status"]["timestamp"], "%Y-%m-%d %H:%M:%S")
+                elapsed_time = current_time - timestamp.timestamp()
+                if elapsed_time > 2:
+                    logging.info(f"poll device {uuid}")
+                    self.poll_device(uuid)
+            except KeyError:
+                pass
 
         self.last_update_time = current_time  # Update last_run_time to current_time
 
@@ -105,38 +136,47 @@ class CommunicationManager:
         The device should then respond with a STATUS message
         Battery powered devices can't be polled.
         """
-        device = self.device_manager.db_manager.search_device_in_db(uuid)
+        device = self.db_manager.search_device_in_db(uuid)
         if device is None:
             logger.error(f"Device with uuid:{uuid} not in DB!")
             return
         if device["battery_powered"] == True:
             # Battery powered devices cant be polled.
             return
-        msg = HostMessage(uuid=self.device_manager.db_manager.uuid, msg_type=MSG_TYPES.GET, data=[])
+        msg = HostMessage(uuid=self.db_manager.uuid, msg_type=MSG_TYPES.GET, data=[])
         if self.device_manager.send_msg_to_device(device["id"], msg.get_raw()) == None:
             logger.error(f"Failed to send GET message to device:{device['type']} with uuid:{device['uuid']}!")
 
     def set_device_param(self, uuid: list[int], parameter: str, new_val: str) -> bool:
         """
-        Send a SET message to a device to change a status parameter.
-        Returns False if no SET message could be created for the given parameter and value
+        Set the a parameter for the device
         """
-        device = self.device_manager.db_manager.search_device_in_db(uuid)
+        device = self.db_manager.search_device_in_db(uuid)
         if device is None:
             logger.error(f"Device with uuid:{uuid} not in DB!")
             return False
         class_obj = self.device_manager.get_supported_device(device["type"])
         if class_obj is None:
             return False
-        set_msg = class_obj.set_parameter(parameter, new_val)
-        if set_msg is None:
+        if parameter not in class_obj.settable_parameters:
             return False
-        msg = HostMessage(
-            uuid=self.device_manager.db_manager.uuid,
-            msg_type=MSG_TYPES.SET,
-            data=set_msg.get_raw(),
-        )
-        if self.device_manager.send_msg_to_device(device["id"], msg.get_raw()) == None:
-            logger.error(f"Failed to send SET message to device:{device['type']} with uuid:{device['uuid']}!")
-        #self.poll_device(uuid)
+
+        # Update the set_status in the db
+        if "set_status" not in device:
+            device["set_status"] = {}
+        device["set_status"][parameter] = new_val
+        self.db_manager.update_device_in_db(device)
         return True
+
+        # set_msg = class_obj.set_parameter(parameter, new_val)
+        # if set_msg is None:
+        #     return False
+        # msg = HostMessage(
+        #     uuid=self.db_manager.uuid,
+        #     msg_type=MSG_TYPES.SET,
+        #     data=set_msg.get_raw(),
+        # )
+        # if self.device_manager.send_msg_to_device(device["id"], msg.get_raw()) == None:
+        #     logger.error(f"Failed to send SET message to device:{device['type']} with uuid:{device['uuid']}!")
+        # #self.poll_device(uuid)
+        # return True

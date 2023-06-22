@@ -4,6 +4,7 @@ from CommunicationManager import CommunicationManager
 from WebServerManager import WebServerManager
 import threading
 import logging
+import time
 
 # Configure the root logger
 logging.basicConfig(level=logging.INFO)
@@ -24,9 +25,12 @@ class SmartHome:
         """
         webserver_thread = threading.Thread(target=self.webserver_manager.run)
         webserver_thread.start()
+        listen_thread = threading.Thread(target=self.communication_manager.listen)
+        listen_thread.start()
+
         while True:
-            self.communication_manager.listen()
-            self.communication_manager.poll_all_devices()
+            self.communication_manager.update_all_devices()
+            time.sleep(0.5)
 
 if __name__ == "__main__":
     home = SmartHome()
