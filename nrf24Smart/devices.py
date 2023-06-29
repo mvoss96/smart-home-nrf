@@ -18,16 +18,7 @@ class DeviceStatus:
         raise NotImplementedError()
 
     @classmethod
-    def parse_bool(cls, value: str) -> Optional[int]:
-        if value.lower() in ["0", "null", "false", "off"]:
-            return 0
-        elif value.lower() in ["1", "one", "true", "on"]:
-            return 1
-        else:
-            return None
-
-    @classmethod
-    def parse_float(cls, value: list[int]) -> Optional[float]:
+    def parse_to_float(cls, value: list[int]) -> Optional[float]:
         try:
             # Convert list of ints to bytes
             bytes_object = bytes(value)
@@ -38,16 +29,30 @@ class DeviceStatus:
             return None
 
     @classmethod
-    def parse_int(cls, value: list[int]) -> Optional[int]:
+    def parse_to_int(cls, value: list[int]) -> Optional[int]:
         try:
-            # Convert list of ints to bytes
-            bytes_object = bytes(value)
-
-            # Unpack bytes to int
-            single_int = struct.unpack("i", bytes_object)[0]
-
+            bytes_object = bytes(value)  # Convert list of ints to bytes
+            single_int = struct.unpack("i", bytes_object)[0]  # Unpack bytes to int
             return single_int
         except Exception:
+            return None
+
+    @classmethod
+    def parse_bool(cls, value: str) -> Optional[int]:
+        if value.lower() in ["0", "null", "false", "off"]:
+            return 0
+        elif value.lower() in ["1", "one", "true", "on"]:
+            return 1
+        else:
+            return None
+
+    @classmethod
+    def parse_int(cls, value: str) -> Optional[list[int]]:
+        try:
+            integer = int(value)  # Convert the string to an integer
+            # Pack the integer into a byte array and convert each byte to an integer
+            return [b for b in struct.pack(">I", integer)]
+        except Exception:  # If the string cannot be converted to an integer
             return None
 
     @classmethod
@@ -83,7 +88,7 @@ class DeviceStatus:
 
 
 class LedController3Channel(DeviceStatus):
-    settable_parameters = ["power", "brightness", "ch_1", "ch_2", "ch_3", "rgb"]
+    settable_parameters = ["power", "brightness", "ch_1", "ch_2", "ch_3", "rgb", "output_power_limit"]
 
     def __init__(self, data: list[int]):
         self.valid = False
@@ -95,7 +100,7 @@ class LedController3Channel(DeviceStatus):
         self.ch_1 = data[2]
         self.ch_2 = data[3]
         self.ch_3 = data[4]
-        ps = self.parse_float(data[5:9])
+        ps = self.parse_to_float(data[5:9])
         self.power_scale = round(ps, 2) if ps is not None else None
         self.timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -106,7 +111,7 @@ class LedController3Channel(DeviceStatus):
             "ch_1": self.ch_1,
             "ch_2": self.ch_2,
             "ch_3": self.ch_3,
-            "power_Scale": self.power_scale,
+            "power_scale": self.power_scale,
             "timestamp": self.timestamp,
         }
         return status
@@ -128,12 +133,14 @@ class LedController3Channel(DeviceStatus):
             data = cls.parse_bytes(new_val)
             if len(data) != 3:
                 data = None
+        elif param == "output_power_limit":
+            data = cls.parse_int(new_val)
+            print("limit:", new_val, data)
         else:
             return None
         if data is None:
             return None
         return SetMessage(index, CHANGE_TYPES.SET, data)
-
 
 
 supported_devices = [LedController3Channel]

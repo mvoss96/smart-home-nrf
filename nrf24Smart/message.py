@@ -49,9 +49,8 @@ class DeviceMessage:
         self.BATTERY = self.raw_data[7]
         self.DATA = self.raw_data[8:-2]
         self.CHECKSUM = (self.raw_data[-2] << 8) | self.raw_data[-1]  # MSB, LSB
-        self.is_valid = self.CHECKSUM == sum(
-            self.raw_data[:-2]
-        )  # Calculate the checksum from the data (excluding checksum bytes)
+        # Calculate the checksum from the data (excluding checksum bytes)
+        self.is_valid = self.CHECKSUM == sum(self.raw_data[:-2])  
 
     def __str__(self) -> str:
         return (
