@@ -1,11 +1,9 @@
 from tinydb import TinyDB, Query
 import random
-import logging
 from threading import Lock
+from Logger import setup_logger
 
-# Configure the root logger
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = setup_logger()
 
 
 class DBManager:

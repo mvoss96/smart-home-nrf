@@ -1,18 +1,17 @@
+import threading
+
 from DBManager import DBManager
 from DeviceManager import DeviceManager
 from CommunicationManager import CommunicationManager
 from WebServerManager import WebServerManager
-import threading
-import logging
-import time
+from Logger import setup_logger
 
-# Configure the root logger
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = setup_logger()
 
 class SmartHome:
     def __init__(self):
         # Initialize the Managers
+        logger.info("NRF-Smart-Home started")
         self.db_manager = DBManager()
         self.device_manager = DeviceManager(self.db_manager)
         self.communication_manager = CommunicationManager(self.device_manager)

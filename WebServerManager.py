@@ -4,14 +4,11 @@ from flask_httpauth import HTTPBasicAuth
 from threading import Thread
 from DBManager import DBManager
 from CommunicationManager import CommunicationManager
-import logging
 import json
 import time
+from Logger import setup_logger
 
-# Configure the root logger
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
+logger = setup_logger()
 
 class WebServerManager:
     def __init__(self, db_manager: DBManager, comm_manager: CommunicationManager):

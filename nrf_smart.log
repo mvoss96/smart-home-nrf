@@ -1,0 +1,10 @@
+2023-07-03 10:49:49 INFO SmartHome:14 - NRF-Smart-Home started
+2023-07-03 10:49:49 INFO DBManager:49 - Read UUID: [182, 68, 225, 237]
+2023-07-03 10:49:51 INFO CommunicationManager:167 - poll device [184, 102, 162, 212]
+2023-07-03 10:49:56 INFO CommunicationManager:167 - poll device [184, 102, 162, 212]
+2023-07-03 10:50:01 INFO CommunicationManager:167 - poll device [184, 102, 162, 212]
+2023-07-03 10:50:06 INFO CommunicationManager:167 - poll device [184, 102, 162, 212]
+2023-07-03 10:50:11 INFO CommunicationManager:167 - poll device [184, 102, 162, 212]
+2023-07-03 10:50:16 INFO CommunicationManager:167 - poll device [184, 102, 162, 212]
+2023-07-03 10:50:21 INFO CommunicationManager:167 - poll device [184, 102, 162, 212]
+2023-07-03 10:50:26 INFO CommunicationManager:167 - poll device [184, 102, 162, 212]

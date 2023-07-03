@@ -2,11 +2,9 @@ from nrf24Smart import DeviceMessage, HostMessage, MSG_TYPES, SetMessage, CHANGE
 import time
 from datetime import datetime
 from DeviceManager import DeviceManager
-import logging
+from Logger import setup_logger
 
-# Configure the root logger
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = setup_logger()
 
 
 class CommunicationManager:
@@ -43,7 +41,7 @@ class CommunicationManager:
             device["last_seen"] = time.strftime("%Y-%m-%d %H:%M:%S")
             self.db_manager.update_device_in_db(device)
         except Exception as err:
-            logging.error(err)
+            logger.error(err)
 
     def handle_boot_message(self, msg: DeviceMessage):
         """
@@ -102,20 +100,20 @@ class CommunicationManager:
                 # print(f"update status of device:{device['type']} uuid:{uuid}")
                 if "set_status" in device_copy and device_copy.get("set_status"):
                     if (class_obj := self.device_manager.get_supported_device(device_copy["type"])) == None:
-                        logging.error("Database contains not supported device")
+                        logger.error("Database contains not supported device")
                         continue
                     keys_to_remove = []
                     for key, value in device_copy["set_status"].items():
-                        print(f"sending set_status param {key} {value}")
+                        logger.info(f"sending SET {key} {value} to device {uuid}")
                         if (set_message := class_obj.create_set_message(key, value)) == None:
-                            logging.error(f"Database contains not supported set_message parameters {key}: {value}")
+                            logger.error(f"Database contains not supported set_message parameters {key}: {value}")
                             keys_to_remove.append(key)
                             continue
 
                         # Skipping redundant status changes
                         # test_val = set_message.newValue[0] if len(set_message.newValue) > 0 else None
                         # if key in device_copy["status"] and test_val == device_copy["status"][key]:
-                        #     logging.info(f"Skipped status update {key} {value} for device {uuid}")
+                        #     logger.info(f"Skipped status update {key} {value} for device {uuid}")
                         #     keys_to_remove.append(key)
                         # continue
 
@@ -124,7 +122,7 @@ class CommunicationManager:
                         )
                         res = self.device_manager.send_msg_to_device(device_copy["id"], msg.get_raw())
                         if res == None:
-                            logging.error(
+                            logger.error(
                                 f"Failed to send SET message to device:{device_copy['type']} with uuid:{device_copy['uuid']}!"
                             )
                         else:
@@ -166,7 +164,7 @@ class CommunicationManager:
         if device["battery_powered"] == True:
             # Battery powered devices cant be polled.
             return
-        logging.info(f"poll device {uuid}")
+        logger.info(f"poll device {uuid}")
         msg = HostMessage(uuid=self.db_manager.uuid, msg_type=MSG_TYPES.GET, data=[])
         for i in range(2):
             if self.device_manager.send_msg_to_device(device["id"], msg.get_raw()) != None:

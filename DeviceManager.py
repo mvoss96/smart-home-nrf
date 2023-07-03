@@ -1,20 +1,17 @@
 from nrf24USB import NRF24Device
 from nrf24Smart import DeviceMessage, HostMessage, MSG_TYPES, supported_devices, DeviceStatus
 import time
-import logging
 from typing import Type, Optional
 from DBManager import DBManager
 from threading import Lock
+from Logger import setup_logger
 
-# Configure the root logger
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
+logger = setup_logger()
 
 class DeviceManager:
     def __init__(self, db_manager: DBManager):
         # Initializing the NRF24Device
-        self.device = NRF24Device("/dev/ttyUSB0", channel=101, address=0)
+        self.device = NRF24Device("/dev/NRF24USB", channel=101, address=0)
 
         # Initialize the lock
         self.comm_lock = Lock()
