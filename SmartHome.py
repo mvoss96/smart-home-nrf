@@ -1,4 +1,5 @@
 import threading
+import sys
 
 from DBManager import DBManager
 from DeviceManager import DeviceManager
@@ -18,16 +19,20 @@ class SmartHome:
         self.webserver_manager = WebServerManager(self.db_manager, self.communication_manager)
         self.db_manager.set_http_password("test")
 
+    def start_thread_and_catch_exceptions(self, target):
+        def wrapper():
+            try:
+                target()
+            except Exception as e:
+                logger.exception(e)
+                sys.exit()
+        thread = threading.Thread(target=wrapper)
+        thread.start()
+
     def start(self):
-        """
-        Starts listening for incoming messages and periodically sends a test message.
-        """
-        webserver_thread = threading.Thread(target=self.webserver_manager.run)
-        webserver_thread.start()
-        listen_thread = threading.Thread(target=self.communication_manager.listen)
-        listen_thread.start()
-        update_thread = threading.Thread(target=self.communication_manager.update_all_devices)
-        update_thread.start()
+        self.start_thread_and_catch_exceptions(self.webserver_manager.run)
+        self.start_thread_and_catch_exceptions(self.communication_manager.listen)
+        self.start_thread_and_catch_exceptions(self.communication_manager.update_all_devices)
 
 if __name__ == "__main__":
     home = SmartHome()

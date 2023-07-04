@@ -2,7 +2,7 @@ import logging
 import colorlog
 
 def setup_logger():
-    logger = logging.getLogger('shared_logger')  # Use a fixed name for the logger
+    logger = logging.getLogger('')  # Use a fixed name for the logger
 
     # if the logger has handlers, just return it
     if logger.hasHandlers():
@@ -29,14 +29,14 @@ def setup_logger():
 
     # Create a logging format for the console
     console_formatter = colorlog.ColoredFormatter(
-        "%(log_color)s%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s",
+        "%(log_color)s%(asctime)s %(levelname)s %(filename)s:%(lineno)d - %(message)s",
         datefmt='%Y-%m-%d %H:%M:%S',  # Removing milliseconds
         log_colors=log_colors
     )
 
     # Create a logging format for the file
     file_formatter = logging.Formatter(
-        "%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s",
+        "%(asctime)s %(levelname)-6s %(filename)s:%(lineno)d - %(message)s",
         datefmt='%Y-%m-%d %H:%M:%S',  # Removing milliseconds
     )
 

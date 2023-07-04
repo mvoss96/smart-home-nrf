@@ -143,7 +143,7 @@ class WebServerManager:
             if uuid is None or data is None:
                 return Response(status=400, response="Empty request or unable to parse UUID")
             new_val = data.get("value")
-            print(f"paramter: {parameter} new_val: {new_val}");
+            logger.info(f"set parameter: {parameter} to new_val: {new_val}");
             device = self.db_manager.search_device_in_db(uuid)
             if device == None:
                 return Response(status=400, response="Device not found")

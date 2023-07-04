@@ -2,6 +2,7 @@ import serial
 import time
 import threading
 import queue
+import logging
 from enum import Enum
 from typing import List
 
@@ -32,13 +33,19 @@ class NRF24Device:
             raise ValueError("Channel must be between 0 and 125.")
         if not 0 <= address <= 255:
             raise ValueError("Address must be between 0 and 255.")
-
+        
+        self.connected = False
+        self.channel = channel
+        self.address = address
         self.stop_event = threading.Event()  # Create an event to signal the thread to stop
         self.msg_queue = queue.Queue()  # Create a new queue
         self.serial_port = serial.Serial(port, 115200, timeout=None)
         self.read_thread = threading.Thread(target=self.read_loop)
         self.read_thread.start()  # Start a new thread that runs the read_loop function
+        self.initialize_device()  # Attempt to initialize device
 
+    def initialize_device(self):
+        logging.info(f"initialize NRF24USB Device with channel: {self.channel} address: {self.address} ...")
         try:  # Try to Read the start message of the device
             (type, data) = self.msg_queue.get(block=True, timeout=2)
         except queue.Empty:
@@ -51,8 +58,8 @@ class NRF24Device:
                 raise ConnectionError("Device did not send correct init message!")
         self.firmware_version = data[0]
         self.serial_nr = data[1:5]  # 32-bit serial number
-        print(f"Firmware version: {self.firmware_version} Serial: {':'.join(f'{x:02X}' for x in  self.serial_nr)}")
-        self.send_packet(bytes([channel, address]), MSG_TYPES.INIT)  # Send the INIT message
+        logging.info(f"Firmware version: {self.firmware_version} Serial: {':'.join(f'{x:02X}' for x in  self.serial_nr)}")
+        self.send_packet(bytes([self.channel, self.address]), MSG_TYPES.INIT)  # Send the INIT message
         try:  # Try to Read the answer of the device
             (type, data) = self.msg_queue.get(block=True, timeout=1)
         except queue.Empty:
@@ -60,6 +67,8 @@ class NRF24Device:
             raise ConnectionError("Device did not initialize!")
         if type is not MSG_TYPES.OK:
             raise ConnectionError("Device did not react correctly to init message")
+        logging.info("Device initialized successfully!")
+        self.connected = True
 
     def send_packet(self, data, msg_type):
         self.serial_port.write(bytes([SpecialBytes.START_BYTE]))  # Write the start byte
@@ -103,46 +112,52 @@ class NRF24Device:
                 return None
 
     def read_loop(self):
-        data = []
-        in_escape = False
-        packet_type = None
-        received_bytes = 0
+        while not self.stop_event.is_set():  # Outer loop for maintaining connection
+            try:
+                data = []
+                in_escape = False
+                packet_type = None
+                received_bytes = 0
 
-        while not self.stop_event.is_set():
-            num_available = self.serial_port.in_waiting
-            if num_available > 0:
-                #print(num_available)
-                byte_data = self.serial_port.read(num_available)
-                for byte in byte_data:
-                    if not in_escape and byte == SpecialBytes.ESCAPE_BYTE:
-                        in_escape = True
-                        continue
-                    if not in_escape:
-                        if byte == SpecialBytes.START_BYTE:
-                            data = []  # Reset the data array when a new packet starts
-                            received_bytes = 0
-                            packet_type = None
-                            continue
-                        if byte == SpecialBytes.END_BYTE:
-                            self.msg_queue.put((packet_type, data))  # Put the message into the queue
-                            continue
-                    if received_bytes == 0 and packet_type == None:
-                        try:
-                            packet_type = MSG_TYPES(byte)
-                        except ValueError:
-                            pass
+                while not self.stop_event.is_set():  # Inner loop for processing bytes
+                    num_available = self.serial_port.in_waiting
+                    if num_available > 0:
+                        byte_data = self.serial_port.read(num_available)
+                        for byte in byte_data:
+                            if not in_escape and byte == SpecialBytes.ESCAPE_BYTE:
+                                in_escape = True
+                                continue
+                            if not in_escape:
+                                if byte == SpecialBytes.START_BYTE:
+                                    data = []  # Reset the data array when a new packet starts
+                                    received_bytes = 0
+                                    packet_type = None
+                                    continue
+                                if byte == SpecialBytes.END_BYTE:
+                                    self.msg_queue.put((packet_type, data))  # Put the message into the queue
+                                    continue
+                            if received_bytes == 0 and packet_type == None:
+                                try:
+                                    packet_type = MSG_TYPES(byte)
+                                except ValueError:
+                                    pass
+                            else:
+                                data.append(byte)
+                                received_bytes += 1
+                            in_escape = False
                     else:
-                        data.append(byte)
-                        received_bytes += 1
-                    in_escape = False
-            else:
-                time.sleep(0.001)
-            
+                        time.sleep(0.001)
 
+            except serial.SerialException as e:
+                logging.error(f"An exception occured during readLoop: {e}\nattempting reconnect...")
+                self.initialize_device()
+
+
+                
     def stop_read_loop(self):
-        print("stop")
         self.stop_event.set()  # Set the stop event
         self.read_thread.join()  # Wait for the thread to finish
+        logging.info("Read Loop stopped!")
 
     def __del__(self):
         self.stop_read_loop()
