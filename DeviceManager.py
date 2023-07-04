@@ -19,6 +19,14 @@ class DeviceManager:
         # Reference to the DBManager instance to handle DB operations
         self.db_manager = db_manager
 
+    def start(self):
+        self.device.start_read_loop()
+        # Wait until the Device has been initialized
+        start_time = time.time()
+        while not self.device.connected:
+            if time.time() - start_time > 5:
+                raise TimeoutError("NRF24Device could not be started")
+
     def get_supported_device(self, device_type: str) -> Optional[Type[DeviceStatus]]:
         # Check if the class exists in the supported_devices list
         if not any(hasattr(cls, "__name__") and cls.__name__ == device_type for cls in supported_devices):

@@ -1,11 +1,13 @@
 import threading
 import sys
+import time
 
 from DBManager import DBManager
 from DeviceManager import DeviceManager
 from CommunicationManager import CommunicationManager
 from WebServerManager import WebServerManager
 from Logger import setup_logger
+
 
 logger = setup_logger()
 
@@ -15,6 +17,7 @@ class SmartHome:
         logger.info("NRF-Smart-Home started")
         self.db_manager = DBManager()
         self.device_manager = DeviceManager(self.db_manager)
+        self.device_manager.start()
         self.communication_manager = CommunicationManager(self.device_manager)
         self.webserver_manager = WebServerManager(self.db_manager, self.communication_manager)
         self.db_manager.set_http_password("test")
@@ -26,11 +29,12 @@ class SmartHome:
             except Exception as e:
                 logger.exception(e)
                 sys.exit()
-        thread = threading.Thread(target=wrapper)
+        thread = threading.Thread(target=wrapper, name=target.__name__)
         thread.start()
 
     def start(self):
         self.start_thread_and_catch_exceptions(self.webserver_manager.run)
+        time.sleep(1) # Wait for server
         self.start_thread_and_catch_exceptions(self.communication_manager.listen)
         self.start_thread_and_catch_exceptions(self.communication_manager.update_all_devices)
 

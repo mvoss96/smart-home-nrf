@@ -11,8 +11,9 @@ def setup_logger():
     logger.setLevel(logging.INFO)
 
     # Create a file handler
-    file_handler = logging.FileHandler('nrf_smart.log')
+    file_handler = logging.FileHandler('nrf_smart.log', mode="w")
     file_handler.setLevel(logging.INFO)
+    
 
     # Create a console handler
     console_handler = logging.StreamHandler()
@@ -29,14 +30,14 @@ def setup_logger():
 
     # Create a logging format for the console
     console_formatter = colorlog.ColoredFormatter(
-        "%(log_color)s%(asctime)s %(levelname)s %(filename)s:%(lineno)d - %(message)s",
+        "%(log_color)s%(asctime)s %(levelname)s [%(threadName)s]%(filename)s:%(lineno)d - %(message)s",
         datefmt='%Y-%m-%d %H:%M:%S',  # Removing milliseconds
         log_colors=log_colors
     )
 
     # Create a logging format for the file
     file_formatter = logging.Formatter(
-        "%(asctime)s %(levelname)-6s %(filename)s:%(lineno)d - %(message)s",
+        "%(asctime)s %(levelname)-6s [%(threadName)s]%(filename)s:%(lineno)d - %(message)s",
         datefmt='%Y-%m-%d %H:%M:%S',  # Removing milliseconds
     )
 

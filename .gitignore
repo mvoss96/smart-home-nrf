@@ -8,5 +8,4 @@ db2.json
 .vscode/settings.json
 .vscode/*
 __pycache__/**
-
-nrf_smart.log
+*.log
