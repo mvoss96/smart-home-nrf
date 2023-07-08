@@ -131,7 +131,7 @@ class NRF24Device:
                                 packet_type = None
                                 continue
                             if byte == SpecialBytes.END_BYTE:
-                                logging.info(f"read packet: {packet_type} {data}")
+                                #logging.info(f"read packet: {packet_type} {data}")
                                 return (packet_type, data)
                         if received_bytes == 0 and packet_type == None:
                             try:
@@ -173,52 +173,7 @@ class NRF24Device:
             logging.exception(f"An exception occured during readLoop: {e}")
             
         logging.info("NRF24USB Read Loop Stopped!")
-                
-
-    # def read_loop2(self):
-    #     logging.info("NRF24USB Read Loop Started!")
-    #     data = []
-    #     in_escape = False
-    #     packet_type = None
-    #     received_bytes = 0
-    #     while not self.stop_event.is_set():  # Inner loop for processing bytes
-    #         try:
-    #             if not self.connected:
-    #                 self.initialize_device()
-    #             num_available = self.serial_port.in_waiting
-    #             if num_available > 0:
-    #                 byte_data = self.serial_port.read(num_available)
-    #                 for byte in byte_data:
-    #                     if not in_escape and byte == SpecialBytes.ESCAPE_BYTE:
-    #                         in_escape = True
-    #                         continue
-    #                     if not in_escape:
-    #                         if byte == SpecialBytes.START_BYTE:
-    #                             data = []  # Reset the data array when a new packet starts
-    #                             received_bytes = 0
-    #                             packet_type = None
-    #                             continue
-    #                         if byte == SpecialBytes.END_BYTE:
-    #                             if packet_type != None:
-    #                                 self.parse_msg(packet_type, data)
-    #                             continue
-    #                     if received_bytes == 0 and packet_type == None:
-    #                         try:
-    #                             packet_type = MSG_TYPES(byte)
-    #                         except ValueError:
-    #                             pass
-    #                     else:
-    #                         data.append(byte)
-    #                         received_bytes += 1
-    #                     in_escape = False
-    #             else:
-    #                 time.sleep(0.001)
-
-    #         except Exception as e:
-    #             logging.exception(f"An exception occured during readLoop: {e}")
-    #             break
-
-    #     logging.info("NRF24USB Read Loop Stopped!")
+        
 
     def stop_read_loop(self):
         if self.read_thread != None:

@@ -98,44 +98,41 @@ class CommunicationManager:
             for device in self.db_manager.get_all_devices():
                 uuid = device["uuid"]
                 uuid_string = str(uuid)
-                if uuid_string not in self.parameter_buffer:
-                    #logger.error(f"set_status missing from device {device['type']}")
-                    continue
+                
                 if (class_obj := self.device_manager.get_supported_device(device["type"])) == None:
                     logger.error(f"Database contains not supported device {device['type']}")
                     continue
+                
+                if uuid_string in self.parameter_buffer and self.parameter_buffer[uuid_string] != {}: 
+                    keys_updated = set()
+                    dict_copy = dict(self.parameter_buffer[uuid_string])
 
-                keys_updated = set()
-                dict_copy = dict(self.parameter_buffer[uuid_string])
+                    for key, value in dict_copy.items():
+                        if (set_message := class_obj.create_set_message(key, value)) == None:
+                            logger.error(f"set_status contains not supported parameter {key}: {value}")
+                            keys_updated.add(key)
+                            continue
 
-                for key, value in dict_copy.items():
-                    if (set_message := class_obj.create_set_message(key, value)) == None:
-                        logger.error(f"set_status contains not supported parameter {key}: {value}")
-                        keys_updated.add(key)
-                        continue
-
-                    msg = HostMessage(
-                        uuid=self.db_manager.uuid, msg_type=MSG_TYPES.SET, data=set_message.get_raw()
-                    )
-                    logger.info(f"sending SET {key} {value} to device {uuid}")
-                    res = self.device_manager.send_msg_to_device(device["id"], msg.get_raw())
-                    if res == None:
-                        logger.error(
-                            f"Failed to send SET message to device:{device['type']} with uuid:{device['uuid']}!"
+                        msg = HostMessage(
+                            uuid=self.db_manager.uuid, msg_type=MSG_TYPES.SET, data=set_message.get_raw()
                         )
-                    else:
-                        keys_updated.add(key)
+                        logger.info(f"sending SET {key} {value} to device {uuid}")
+                        res = self.device_manager.send_msg_to_device(device["id"], msg.get_raw())
+                        if res == None:
+                            logger.error(
+                                f"Failed to send SET message to device:{device['type']} with uuid:{device['uuid']}!"
+                            )
+                        else:
+                            keys_updated.add(key)
 
-                    #time.sleep(0.2)
+                    self.poll_device(uuid) # Update Device Status
 
-                self.poll_device(uuid) # Update Device Status
-
-                for key in keys_updated:
-                    # Only remove if values have not changed:
-                    if dict_copy.get(key) == self.parameter_buffer[uuid_string].get(key):
-                        #print(f"delete {dict_copy.get(key)} {self.parameter_buffer[uuid_string].get(key)}")
-                        del self.parameter_buffer[uuid_string][key]
-                self.db_manager.update_device_in_db(device)
+                    for key in keys_updated:
+                        # Only remove if values have not changed:
+                        if dict_copy.get(key) == self.parameter_buffer[uuid_string].get(key):
+                            #print(f"delete {dict_copy.get(key)} {self.parameter_buffer[uuid_string].get(key)}")
+                            del self.parameter_buffer[uuid_string][key]
+                    self.db_manager.update_device_in_db(device)
 
                 try:
                     timestamp = datetime.strptime(device["status"]["timestamp"], "%Y-%m-%d %H:%M:%S")
