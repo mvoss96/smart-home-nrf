@@ -11,6 +11,9 @@ uint8_t *channels[] = {&status.ch_1, &status.ch_2, &status.ch_3};
 // Corresponding pins for R, G, B output
 int pins[] = {PIN_OUTPUT_R, PIN_OUTPUT_G, PIN_OUTPUT_B};
 
+// Config variables
+unsigned int outputPowerLimit = OUTPUT_POWER_LIMIT;
+
 // Function to update LED outputs based on the current status
 void setOutput()
 {
@@ -23,11 +26,11 @@ void setOutput()
     }
 
     // Calculate the power scaling factor
-    //Serial.print("total channel: ");
-    //Serial.println(channelTotal);
-    status.powerScale = min(1, (float)OUTPUT_POWER_LIMIT / channelTotal);
-    //Serial.print("power scale: ");
-    //Serial.println(status.powerScale);
+    // Serial.print("total channel: ");
+    // Serial.println(channelTotal);
+    status.powerScale = min(1, (float)outputPowerLimit / channelTotal);
+    // Serial.print("power scale: ");
+    // Serial.println(status.powerScale);
 
     // Loop over each color channel
     for (int i = 0; i < 3; i++)
@@ -178,6 +181,24 @@ void setStatus(uint8_t *data, uint8_t length)
         else
         {
             Serial.println("ERROR: Unsupported setType for RGB!");
+        }
+        break;
+    case 6:
+        if (msg.changeType == (uint8_t)ChangeTypes::SET)
+        {
+            if (msg.valueSize == 4)
+            {
+                outputPowerLimit = ((uint32_t)msg.newValue[0] << 24) | ((uint32_t)msg.newValue[1] << 16) |
+                                   ((uint32_t)msg.newValue[2] << 8) | ((uint32_t)msg.newValue[3]);
+            }
+            else
+            {
+                Serial.println("ERROR: Incompatible valueSize for OutputPowerLimit!");
+            }
+        }
+        else
+        {
+            Serial.println("ERROR: Unsupported setType for OutputPowerLimit!");
         }
         break;
     default:

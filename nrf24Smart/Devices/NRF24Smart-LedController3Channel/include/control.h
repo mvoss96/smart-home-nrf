@@ -14,14 +14,6 @@ extern Status status;
 
 void setStatus(uint8_t* data, uint8_t length);
 void setOutput();
-// void togglePower();
-// void setPower(bool newPwr);
-// void setBrightness(uint8_t newBr);
-// void increaseBrightness(uint8_t val);
-// void decreaseBrightness(uint8_t val);
-// void setChannel(int channel, uint8_t value);
-// void increaseChannel(int channel, uint8_t val);
-// void decreaseChannel(int channel, uint8_t val);
-// void setRGB(uint8_t r, uint8_t g, uint8_t b);
+
 
 
