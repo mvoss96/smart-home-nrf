@@ -1,4 +1,4 @@
-from nrf24Smart import DeviceMessage, HostMessage, MSG_TYPES, SetMessage, CHANGE_TYPES, supported_devices
+from nrf24Smart import DeviceMessage, HostMessage, MSG_TYPES
 import time
 from datetime import datetime
 from DeviceManager import DeviceManager
@@ -15,6 +15,8 @@ class CommunicationManager:
         # Reference to the DeviceManager instance to handle device operations
         self.device_manager = device_manager
         self.db_manager = self.device_manager.db_manager
+
+        self.parameter_buffer = {}
 
     def handle_status_message(self, msg: DeviceMessage):
         """
@@ -72,8 +74,8 @@ class CommunicationManager:
                 # print(data)
                 msg = DeviceMessage(data)
                 if not msg.is_valid:
-                    logger.warning("invalid message!")
-                    return
+                    logger.warning(f"invalid message! {msg.raw_data}")
+                    continue
                 if msg.MSG_TYPE == MSG_TYPES.INIT.value:
                     self.handle_init_mesage(msg)
                 elif msg.MSG_TYPE == MSG_TYPES.BOOT.value:
@@ -91,55 +93,49 @@ class CommunicationManager:
         Poll all devices if at least one second has passed since the last update.
         """
         while True:
-            current_time = time.time()
-            # if current_time - self.last_update_time < 0.5:
-            #     return  # Return without doing anything if called to soon
+            current_time = time.time()  
+            
             for device in self.db_manager.get_all_devices():
-                device_copy = dict(device)  # Create a deep copy to prevent issues when another thread changes the db
                 uuid = device["uuid"]
-                # print(f"update status of device:{device['type']} uuid:{uuid}")
-                if "set_status" in device_copy and device_copy.get("set_status"):
-                    if (class_obj := self.device_manager.get_supported_device(device_copy["type"])) == None:
-                        logger.error("Database contains not supported device")
+                uuid_string = str(uuid)
+                if uuid_string not in self.parameter_buffer:
+                    #logger.error(f"set_status missing from device {device['type']}")
+                    continue
+                if (class_obj := self.device_manager.get_supported_device(device["type"])) == None:
+                    logger.error(f"Database contains not supported device {device['type']}")
+                    continue
+
+                keys_updated = set()
+                dict_copy = dict(self.parameter_buffer[uuid_string])
+
+                for key, value in dict_copy.items():
+                    if (set_message := class_obj.create_set_message(key, value)) == None:
+                        logger.error(f"set_status contains not supported parameter {key}: {value}")
+                        keys_updated.add(key)
                         continue
-                    keys_to_remove = []
-                    for key, value in device_copy["set_status"].items():
-                        logger.info(f"sending SET {key} {value} to device {uuid}")
-                        if (set_message := class_obj.create_set_message(key, value)) == None:
-                            logger.error(f"Database contains not supported set_message parameters {key}: {value}")
-                            keys_to_remove.append(key)
-                            continue
 
-                        # Skipping redundant status changes
-                        # test_val = set_message.newValue[0] if len(set_message.newValue) > 0 else None
-                        # if key in device_copy["status"] and test_val == device_copy["status"][key]:
-                        #     logger.info(f"Skipped status update {key} {value} for device {uuid}")
-                        #     keys_to_remove.append(key)
-                        # continue
-
-                        msg = HostMessage(
-                            uuid=self.db_manager.uuid, msg_type=MSG_TYPES.SET, data=set_message.get_raw()
+                    msg = HostMessage(
+                        uuid=self.db_manager.uuid, msg_type=MSG_TYPES.SET, data=set_message.get_raw()
+                    )
+                    logger.info(f"sending SET {key} {value} to device {uuid}")
+                    res = self.device_manager.send_msg_to_device(device["id"], msg.get_raw())
+                    if res == None:
+                        logger.error(
+                            f"Failed to send SET message to device:{device['type']} with uuid:{device['uuid']}!"
                         )
-                        res = self.device_manager.send_msg_to_device(device_copy["id"], msg.get_raw())
-                        if res == None:
-                            logger.error(
-                                f"Failed to send SET message to device:{device_copy['type']} with uuid:{device_copy['uuid']}!"
-                            )
-                        else:
-                            keys_to_remove.append(key)
+                    else:
+                        keys_updated.add(key)
 
-                        time.sleep(0.2)
-                    self.poll_device(uuid)
+                    #time.sleep(0.2)
 
-                    for key in keys_to_remove:
-                        # Only remove if values have not changed:
-                        try:
-                            if device_copy["set_status"][key] == device["set_status"][key]:
-                                # print(f"delete {key} {device_copy['set_status'][key]} {device['set_status'][key]}")
-                                del device["set_status"][key]
-                        except KeyError:
-                            pass
-                    self.db_manager.update_device_in_db(device)
+                self.poll_device(uuid) # Update Device Status
+
+                for key in keys_updated:
+                    # Only remove if values have not changed:
+                    if dict_copy.get(key) == self.parameter_buffer[uuid_string].get(key):
+                        #print(f"delete {dict_copy.get(key)} {self.parameter_buffer[uuid_string].get(key)}")
+                        del self.parameter_buffer[uuid_string][key]
+                self.db_manager.update_device_in_db(device)
 
                 try:
                     timestamp = datetime.strptime(device["status"]["timestamp"], "%Y-%m-%d %H:%M:%S")
@@ -178,22 +174,28 @@ class CommunicationManager:
         """
         Set the a parameter for the device
         """
+        logger.info(f"set {uuid} parameter: {parameter} to new_val: {new_val}")
         device = self.db_manager.search_device_in_db(uuid)
         if device is None:
             logger.error(f"Device with uuid:{uuid} not in DB!")
             return False
         class_obj = self.device_manager.get_supported_device(device["type"])
         if class_obj is None:
+            logger.warning(f"{device['type']} not supported")
             return False
         if parameter not in class_obj.settable_parameters:
+            logger.warning(f"parameter {parameter} not supported")
             return False
+        
+        # # Update the set_status in the db
+        # if "set_status" not in device:
+        #     device["set_status"] = {}
 
-        # Update the set_status in the db
-        if "set_status" not in device:
-            device["set_status"] = {}
-        device["set_status"][parameter] = new_val
-        self.db_manager.update_device_in_db(device)
-        # if parameter == "brightness":
-        #     msg = HostMessage(self.db_manager.uuid, MSG_TYPES.SET, SetMessage(1, CHANGE_TYPES.SET, int(new_val)).get_raw())
-        #     self.device_manager.send_msg_to_device(1, msg.get_raw())
+        # device["set_status"][parameter] = new_val
+        # logger.info(f"update set_param in db: {device['set_status'][parameter]}")
+        # self.db_manager.update_device_in_db(device)
+        uuid_string = str(uuid)
+        if uuid_string not in self.parameter_buffer:
+            self.parameter_buffer[uuid_string] = {}
+        self.parameter_buffer[uuid_string][parameter] = new_val
         return True
