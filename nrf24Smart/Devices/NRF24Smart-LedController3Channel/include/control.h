@@ -12,7 +12,7 @@ struct Status{
 
 extern Status status;
 
-void setStatus(uint8_t* data, uint8_t length);
+void setStatus(const uint8_t* data, uint8_t length);
 void setOutput();
 
 

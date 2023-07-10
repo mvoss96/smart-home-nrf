@@ -25,6 +25,12 @@ void setOutput()
         channelTotal += *channels[i];
     }
 
+    if (channelTotal == 0)
+    {
+        Serial.println("channelTotal is 0!");
+        return;
+    }
+
     // Calculate the power scaling factor
     // Serial.print("total channel: ");
     // Serial.println(channelTotal);
@@ -41,7 +47,7 @@ void setOutput()
             digitalWrite(pins[i], LOW);
         }
         // Else, set output according to brightness, color and power limit
-        else
+        else if (channels[i]) // make sure pointer isn't NULL before dereferencing
         {
             analogWrite(pins[i], *channels[i] * status.powerScale * (float)status.brightness / 255);
         }
@@ -63,7 +69,10 @@ void setPower(bool newPwr)
 // Function to set brightness
 void setBrightness(uint8_t newBr)
 {
-    status.brightness = max((uint8_t)(1 / status.powerScale), newBr);
+    if (status.powerScale != 0) // Prevent divide by zero error
+    {
+        status.brightness = max((uint8_t)(1 / status.powerScale), newBr);
+    }
 }
 
 // Function to increase brightness, taking care not to exceed 255
@@ -81,44 +90,77 @@ void decreaseBrightness(uint8_t val)
 // Function to set a specific color channel to a given value
 void setChannel(int channel, uint8_t value)
 {
-    *channels[channel] = value;
+    if (channels[channel]) // Make sure pointer isn't NULL before dereferencing
+    {
+        *channels[channel] = value;
+    }
 }
 
 // Function to increase a specific color channel, taking care not to exceed 255
 void increaseChannel(int channel, uint8_t val)
 {
-    *channels[channel] = min(255, *channels[channel] + val);
+    if (channels[channel]) // make sure pointer isn't NULL before dereferencing
+    {
+        *channels[channel] = min(255, *channels[channel] + val);
+    }
 }
 
 // Function to decrease a specific color channel, taking care not to go below 0
 void decreaseChannel(int channel, uint8_t val)
 {
-    *channels[channel] = max(0, *channels[channel] - val);
+    if (channels[channel]) // make sure pointer isn't NULL before dereferencing
+    {
+        *channels[channel] = max(0, *channels[channel] - val);
+    }
 }
 
 // Function to set R, G, B values at once
 void setRGB(uint8_t r, uint8_t g, uint8_t b)
 {
-    *channels[0] = r;
-    *channels[1] = g;
-    *channels[2] = b;
+    if (channels[0]) // Make sure pointer isn't NULL before dereferencing
+    {
+        *channels[0] = r;
+    }
+    if (channels[1]) // Make sure pointer isn't NULL before dereferencing
+    {
+        *channels[1] = g;
+    }
+    if (channels[2]) // Make sure pointer isn't NULL before dereferencing
+    {
+        *channels[2] = b;
+    }
 }
 
-void setStatus(uint8_t *data, uint8_t length)
+void setStatus(const uint8_t *data, uint8_t length)
 {
+    // Null data check
+    if (data == nullptr)
+    {
+        Serial.println("ERROR: Null data pointer in setStatus!");
+        return;
+    }
+
     SetMessage msg(data, length);
     if (!msg.isValid)
     {
         return;
     }
+
+    // Check if newValue is not null before dereferencing
+    if (msg.newValue == nullptr)
+    {
+        Serial.println("ERROR: Null newValue pointer!");
+        return;
+    }
+
     switch (msg.varIndex)
     {
     case 0:
-        if (msg.changeType == (uint8_t)ChangeTypes::SET)
+        if (msg.changeType == ChangeTypes::SET && msg.valueSize > 0)
         {
             setPower(*msg.newValue);
         }
-        else if (msg.changeType == (uint8_t)ChangeTypes::TOGGLE)
+        else if (msg.changeType == ChangeTypes::TOGGLE)
         {
             togglePower();
         }
@@ -128,15 +170,15 @@ void setStatus(uint8_t *data, uint8_t length)
         }
         break;
     case 1:
-        if (msg.changeType == (uint8_t)ChangeTypes::SET)
+        if (msg.changeType == ChangeTypes::SET && msg.valueSize > 0)
         {
             setBrightness(*msg.newValue);
         }
-        else if (msg.changeType == (uint8_t)ChangeTypes::INCREASE)
+        else if (msg.changeType == ChangeTypes::INCREASE && msg.valueSize > 0)
         {
             increaseBrightness(*msg.newValue);
         }
-        else if (msg.changeType == (uint8_t)ChangeTypes::DECREASE)
+        else if (msg.changeType == ChangeTypes::DECREASE && msg.valueSize > 0)
         {
             decreaseBrightness(*msg.newValue);
         }
@@ -148,15 +190,15 @@ void setStatus(uint8_t *data, uint8_t length)
     case 2:
     case 3:
     case 4:
-        if (msg.changeType == (uint8_t)ChangeTypes::SET)
+        if (msg.changeType == ChangeTypes::SET && msg.valueSize > 0)
         {
             setChannel(msg.varIndex - 2, *msg.newValue);
         }
-        else if (msg.changeType == (uint8_t)ChangeTypes::INCREASE)
+        else if (msg.changeType == ChangeTypes::INCREASE && msg.valueSize > 0)
         {
             increaseChannel(msg.varIndex - 2, *msg.newValue);
         }
-        else if (msg.changeType == (uint8_t)ChangeTypes::DECREASE)
+        else if (msg.changeType == ChangeTypes::DECREASE && msg.valueSize > 0)
         {
             decreaseChannel(msg.varIndex - 2, *msg.newValue);
         }
@@ -167,7 +209,7 @@ void setStatus(uint8_t *data, uint8_t length)
         }
         break;
     case 5:
-        if (msg.changeType == (uint8_t)ChangeTypes::SET)
+        if (msg.changeType == ChangeTypes::SET && msg.valueSize > 0)
         {
             if (msg.valueSize == 3)
             {
@@ -184,7 +226,7 @@ void setStatus(uint8_t *data, uint8_t length)
         }
         break;
     case 6:
-        if (msg.changeType == (uint8_t)ChangeTypes::SET)
+        if (msg.changeType == ChangeTypes::SET && msg.valueSize > 0)
         {
             if (msg.valueSize == 4)
             {

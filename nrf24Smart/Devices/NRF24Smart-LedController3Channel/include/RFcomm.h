@@ -6,6 +6,7 @@
 
 enum class MSG_TYPES : uint8_t
 {
+    ERROR,
     INIT,
     BOOT,
     OK,
@@ -21,21 +22,31 @@ class ClientPacket
 private:
     uint8_t ID;
     uint8_t UUID[4] = DEVICE_UUID;
-    uint8_t MSG_TYPE;
+    uint8_t MSG_TYPE = (uint8_t)MSG_TYPES::ERROR;
     uint8_t FIRMWARE = FIRMWARE_VERSION;
     uint8_t POWER_TYPE = DEVICE_BATTERY_POWERED;
-    uint8_t DATA[24]; // DATA contains two checksum bytes
+    uint8_t DATA[24] = {0}; // DATA contains two checksum bytes
 
     // Internal Variables, not included into the send Packet
-    uint8_t dataSize;
+    size_t dataSize = 0;
+    bool isInitialized = false;
 
     void addChecksum()
     {
         // Calculate the checksum by summing all the bytes
         uint16_t sum = 0;
-        for (size_t i = 0; i < 32 - sizeof(DATA) + dataSize; i++)
+
+        sum += ID;
+        for (size_t i = 0; i < sizeof(UUID); i++)
         {
-            sum += reinterpret_cast<const uint8_t *>(this)[i];
+            sum += UUID[i];
+        }
+        sum += MSG_TYPE;
+        sum += FIRMWARE;
+        sum += POWER_TYPE;
+        for (size_t i = 0; i < dataSize; i++)
+        {
+            sum += DATA[i];
         }
 
         // Store the checksum in DATA
@@ -62,28 +73,40 @@ public:
             POWER_TYPE = batteryLevel();
         }
         addChecksum();
+        isInitialized = true;
     }
 
-    uint8_t getSize()
+    size_t getSize()
     {
+        if (!isInitialized)
+        {
+            return 0;
+        }
         return (32 - sizeof(DATA) + dataSize + 2);
+    }
+
+    bool getInitialized()
+    {
+        return isInitialized;
     }
 
     void print()
     {
+        if (!isInitialized)
+        {
+            Serial.println("Attempted to print an uninitialized ClientPacket!");
+            return;
+        }
         Serial.print("ClientPacket: ");
         Serial.print("ID: ");
         Serial.print(ID);
         Serial.print(" ");
         Serial.print("UUID: ");
-        Serial.print(UUID[0]);
-        Serial.print(" ");
-        Serial.print(UUID[1]);
-        Serial.print(" ");
-        Serial.print(UUID[2]);
-        Serial.print(" ");
-        Serial.print(UUID[3]);
-        Serial.print(" ");
+        for (size_t i = 0; i < sizeof(UUID); i++)
+        {
+            Serial.print(UUID[i]);
+            Serial.print(" ");
+        }
         Serial.print("TYPE: ");
         Serial.print(MSG_TYPE);
         Serial.print(" ");
@@ -94,7 +117,7 @@ public:
         Serial.print(POWER_TYPE);
         Serial.print(" ");
         Serial.print("DATA: ");
-        for (int i = 0; i < dataSize + 2; i++)
+        for (size_t i = 0; i < dataSize + 2; i++)
         {
             Serial.print(DATA[i]);
             Serial.print(" ");
@@ -113,16 +136,35 @@ private:
     uint8_t DATA[26]; // DATA contains two checksum bytes
 
     // Internal Variables, not included in the received Packet
-    uint8_t dataSize;
+    size_t dataSize;
     bool valid = false;
 
     bool checkChecksum()
     {
+        // Check dataSize is within bounds
+        if (dataSize > 24)
+        {
+            return false;
+        }
+
         // Calculate the checksum by summing all the bytes
         uint16_t sum = 0;
-        for (size_t i = 0; i < 32 - sizeof(DATA) + dataSize; i++)
+
+        sum += ID;
+        for (size_t i = 0; i < sizeof(UUID); i++)
         {
-            sum += reinterpret_cast<const uint8_t *>(this)[i];
+            sum += UUID[i];
+        }
+        sum += MSG_TYPE;
+        for (size_t i = 0; i < dataSize; i++)
+        {
+            sum += DATA[i];
+        }
+
+        // Check if there are enough bytes for the checksum
+        if (dataSize + 1 >= sizeof(DATA))
+        {
+            return false;
         }
 
         uint16_t received_checksum = ((uint16_t)DATA[dataSize] << 8) | DATA[dataSize + 1];
@@ -132,6 +174,17 @@ private:
 public:
     ServerPacket(uint8_t *pckData, uint8_t pckSize)
     {
+        if (pckSize < 6)
+        {
+            Serial.println("Too small pckSize");
+            return;
+        }
+        if (pckSize > 32)
+        {
+            Serial.println("Too large pckSize");
+            return;
+        }
+
         dataSize = pckSize - (32 - sizeof(DATA)) - 2;
         if (dataSize > sizeof(DATA) - 2)
         {
@@ -149,7 +202,6 @@ public:
         MSG_TYPE = pckData[5];
         memcpy(DATA, pckData + 6, dataSize + 2);
         valid = checkChecksum();
-        // print();
     }
 
     bool isValid()
@@ -162,7 +214,7 @@ public:
         return ID;
     }
 
-    uint8_t *getUUID()
+    const uint8_t *getUUID()
     {
         return UUID;
     }
@@ -172,7 +224,7 @@ public:
         return MSG_TYPE;
     }
 
-    uint8_t *getDATA()
+    const uint8_t *getDATA()
     {
         return DATA;
     }
@@ -201,7 +253,7 @@ public:
         Serial.print(MSG_TYPE);
         Serial.print(" ");
         Serial.print("DATA: ");
-        for (int i = 0; i < dataSize + 2; i++)
+        for (size_t i = 0; i < dataSize + 2; i++)
         {
             Serial.print(DATA[i]);
             Serial.print(" ");
@@ -210,7 +262,9 @@ public:
     }
 };
 
-enum class ChangeTypes : uint8_t{
+enum class ChangeTypes : uint8_t
+{
+    INVALID,
     SET,
     TOGGLE,
     INCREASE,
@@ -219,14 +273,14 @@ enum class ChangeTypes : uint8_t{
 
 struct SetMessage
 {
-    uint8_t varIndex;
-    uint8_t changeType;
-    uint8_t valueSize;
-    uint8_t *newValue;
+    uint8_t varIndex = 0;
+    ChangeTypes changeType = ChangeTypes::INVALID;
+    uint8_t valueSize = 0;
+    const uint8_t *newValue;
 
     bool isValid = false;
 
-    SetMessage(uint8_t *data, uint8_t size)
+    SetMessage(const uint8_t *data, uint8_t size)
     {
         if (size < 4)
         {
@@ -234,14 +288,20 @@ struct SetMessage
             return;
         }
         varIndex = data[0];
-        changeType = data[1];
+        uint8_t rawChangeType = data[1];
+        if (rawChangeType > static_cast<uint8_t>(ChangeTypes::DECREASE))
+        {
+            Serial.println("ERROR: Invalid changeType!");
+            return;
+        }
+        changeType = static_cast<ChangeTypes>(rawChangeType);
         valueSize = data[2];
-        newValue = data + 3;
         if (size - valueSize != 3)
         {
             Serial.println("ERROR: Incompatible SetMessage size!");
             return;
         }
+        newValue = data + 3;
         isValid = true;
     }
 };
