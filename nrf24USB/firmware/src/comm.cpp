@@ -117,8 +117,6 @@ bool nrfSend(uint8_t destination, void *data, uint8_t length, bool requireAck)
     }
     else
     {
-        sendStringMessage("SUCCESS", MSG_TYPES::OK);
-        // Check if the receiver added a payload 
         readAckPayload();
     }
     return result;
@@ -137,7 +135,7 @@ uint8_t readAckPayload()
     {
         _radio.readData(buff);
     }
-    sendPacket(buff, length, MSG_TYPES::PAYLOAD);
+    sendPacket(buff, length, MSG_TYPES::OK);
     return length;
 }
 

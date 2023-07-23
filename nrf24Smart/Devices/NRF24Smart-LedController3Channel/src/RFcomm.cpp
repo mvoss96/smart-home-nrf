@@ -159,5 +159,12 @@ void connectToServer()
 void sendStatus()
 {
     ClientPacket pck(radioID, MSG_TYPES::STATUS, (uint8_t *)&status, sizeof(status));
-    nrfSend(SERVER_RADIO_ID, &pck, pck.getSize());
+    if (pck.getInitialized())
+    {
+        nrfSend(SERVER_RADIO_ID, &pck, pck.getSize());
+    }
+    else
+    {
+        Serial.println("Could not send not initialized ClientPacket!");
+    }
 }

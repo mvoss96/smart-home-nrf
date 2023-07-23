@@ -71,6 +71,8 @@ void loop()
       {
         blink(PIN_LED2, 1, 100);
       }
+      Serial.print(millis());
+      Serial.print(" ");
       switch ((MSG_TYPES)pck.getTYPE())
       {
       case MSG_TYPES::RESET:
@@ -88,6 +90,10 @@ void loop()
       default:
         Serial.println("-> Unsupported message received!");
       }
+    }
+    else
+    {
+      Serial.println("Invalid Packet received!");
     }
   }
 }
