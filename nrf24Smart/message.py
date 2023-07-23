@@ -2,19 +2,21 @@ from enum import Enum
 
 
 class MSG_TYPES(Enum):
-    INIT = 0
-    BOOT = 1
-    OK = 2
-    SET = 3
-    GET = 4
-    RESET = 5
-    STATUS = 6
+    ERROR = 0
+    INIT = 1
+    BOOT = 2
+    OK = 3
+    SET = 4
+    GET = 5
+    RESET = 6
+    STATUS = 7
 
 class CHANGE_TYPES(Enum):
-   SET = 0
-   TOGGLE = 1
-   INCREASE = 2
-   DECREASE = 3
+   INVALID = 0
+   SET = 1
+   TOGGLE = 2
+   INCREASE = 3
+   DECREASE = 4
 
 
 class SetMessage:
@@ -37,11 +39,11 @@ class SetMessage:
 
 class DeviceMessage:
     def __init__(self, raw_data) -> None:
-        if len(raw_data) < 8:
+        self.raw_data = raw_data
+        if len(self.raw_data) < 8:
             print("DeviceMessage must be at least 8 bytes long")
             self.is_valid = False
             return
-        self.raw_data = raw_data
         self.ID = self.raw_data[0]
         self.UUID = self.raw_data[1:5]
         self.MSG_TYPE = self.raw_data[5]

@@ -3,14 +3,18 @@ import time
 from datetime import datetime
 from DeviceManager import DeviceManager
 from Logger import setup_logger
+from threading import Event
 
 logger = setup_logger()
 
 
 class CommunicationManager:
-    def __init__(self, device_manager: DeviceManager):
+    def __init__(self, device_manager: DeviceManager, shutdown_flag :  Event):
         # Initializing the last_update_time
         self.last_update_time = time.time()
+
+        #Set shutdown_flag
+        self.shutdown_flag = shutdown_flag
 
         # Reference to the DeviceManager instance to handle device operations
         self.device_manager = device_manager
@@ -68,7 +72,7 @@ class CommunicationManager:
         Listens for incoming messages.
         If a message is available, it processes the message according to its type.
         """
-        while True:
+        while not self.shutdown_flag.is_set():
             data = self.device_manager.get_device_message()
             if data:
                 # print(data)
@@ -86,13 +90,14 @@ class CommunicationManager:
                     logger.info("->", msg)
 
             time.sleep(0.01)
+        logger.info("Stopped listen")
 
     def update_all_devices(self):
         """
         Send any pending status changes in set_status to the devices.
         Poll all devices if at least one second has passed since the last update.
         """
-        while True:
+        while not self.shutdown_flag.is_set():
             current_time = time.time()  
             
             for device in self.db_manager.get_all_devices():
@@ -144,6 +149,8 @@ class CommunicationManager:
 
             time.sleep(0.5)
 
+        logger.info("Stopped update_all_devices")
+
     def poll_device(self, uuid: list[int]):
         """
         Updates a device's status by sending a GET message
@@ -160,8 +167,10 @@ class CommunicationManager:
         logger.info(f"poll device {uuid}")
         msg = HostMessage(uuid=self.db_manager.uuid, msg_type=MSG_TYPES.GET, data=[])
         for i in range(2):
-            if self.device_manager.send_msg_to_device(device["id"], msg.get_raw()) != None:
-                time.sleep(0.2) # Wait for status device to respond to poll
+            response = self.device_manager.send_msg_to_device(device["id"], msg.get_raw())
+            if  response != None:
+                #time.sleep(0.2) # Wait for status device to respond to poll
+                print(f"response: {response}")
                 return
             logger.warn(f"Retrying send GET message to id: {device['id']}")
             time.sleep(0.2)
@@ -184,13 +193,6 @@ class CommunicationManager:
             logger.warning(f"parameter {parameter} not supported")
             return False
         
-        # # Update the set_status in the db
-        # if "set_status" not in device:
-        #     device["set_status"] = {}
-
-        # device["set_status"][parameter] = new_val
-        # logger.info(f"update set_param in db: {device['set_status'][parameter]}")
-        # self.db_manager.update_device_in_db(device)
         uuid_string = str(uuid)
         if uuid_string not in self.parameter_buffer:
             self.parameter_buffer[uuid_string] = {}

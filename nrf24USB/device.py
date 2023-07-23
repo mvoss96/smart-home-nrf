@@ -85,19 +85,20 @@ class NRF24Device:
                 self.serial_port.write(bytes([byte]))
         self.serial_port.write(bytes([SpecialBytes.END_BYTE]))  # Write the end byte
 
-    def send_msg(self, destination: int, data: List[int], require_ack=True):
+    def send_msg(self, destination: int, data: List[int], require_ack=True) -> Optional[list[int]]:
         with self.lock:
             self.send_packet(bytes([destination, require_ack]) + bytes(data), MSG_TYPES.MSG)
             if not require_ack:
                 return []
-            time.sleep(0.01) # Wait for aswer form NRf24USB Device
+            time.sleep(0.02) # Wait for aswer form NRf24USB Device
             (recv_type, recv_data) = self.read_packet(timeout=0.5)
             if recv_type is MSG_TYPES.OK:
                 return recv_data
             elif recv_type is MSG_TYPES.ERROR:
                 return None
             else:
-                raise ConnectionError(f"Device did not answer {recv_type}")
+                logging.warning(f"Did not receive correct response to send_msg {recv_type} {recv_data}")
+                return None
 
     def get_message(self):
         while True:
@@ -160,20 +161,22 @@ class NRF24Device:
                     if not self.connected:
                         self.initialize_device()
                     (packet_type, packet_data) = self.read_packet(timeout=0)
-                    if packet_type == MSG_TYPES.ERROR:
-                        logging.error(f"NRF24USB Device reported ERROR: {packet_data}")
-                    elif packet_type == MSG_TYPES.INIT: # Device might have restarted attempt a reconnect
-                        logging.warning("NRF24USB Device appears to have reset!")
-                        self.connected = False
-                        self.initialize_device()
-                    elif packet_type is not None:
-                        logging.debug(f"put in loop {packet_type} {packet_data}")
-                        self.msg_queue.put((packet_type, packet_data))  # Put the message into the queue
+                    if packet_type is not None:
+                        print(packet_type, packet_data)
+                        if packet_type == MSG_TYPES.ERROR:
+                            logging.error(f"NRF24USB Device reported ERROR: {bytes(packet_data).decode(errors='ignore') if packet_data is not None else ''}")
+                        elif packet_type == MSG_TYPES.INIT: # Device might have restarted attempt a reconnect
+                            logging.warning("NRF24USB Device appears to have reset!")
+                            self.connected = False
+                            self.initialize_device()
+                        elif packet_type is not None:
+                            logging.debug(f"put in loop {packet_type} {packet_data}")
+                            self.msg_queue.put((packet_type, packet_data))  # Put the message into the queue
         except Exception as e:
             logging.exception(f"An exception occured during readLoop: {e}")
             
         logging.info("NRF24USB Read Loop Stopped!")
-        
+
 
     def stop_read_loop(self):
         if self.read_thread != None:

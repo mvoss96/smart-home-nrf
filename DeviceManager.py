@@ -40,6 +40,7 @@ class DeviceManager:
         Sends a message to a device given its device ID and the raw message data.
         """
         with self.comm_lock:
+            #print(f"send: {device_id} {raw_msg}")
             return self.device.send_msg(device_id, raw_msg, require_ack)
 
     def init_new_device(self, msg: DeviceMessage):

@@ -152,7 +152,7 @@ class WebServerManager:
             if not self.comm_manager.set_device_param(uuid, parameter, str(new_val)):
                 return Response(status=400, response="Unable to parse request")
             return Response()
-
+    
     def parse_uuid(self, device_uuid):
         try:
             uuid = [int(x) for x in device_uuid.split("-")]
@@ -177,6 +177,7 @@ class WebServerManager:
             self.app.run(host=host, port=port, debug=debug)
 
         self.server = Thread(target=start_app)
+        self.server.setDaemon(True)
         self.server.start()
 
     def stop(self):
@@ -184,5 +185,5 @@ class WebServerManager:
         Stop the Flask server.
         """
         if self.server is not None:
-            # self.server.terminate()
+            logger.info("Stopping flask  Server")
             self.server = None
