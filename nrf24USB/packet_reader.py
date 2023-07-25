@@ -6,7 +6,7 @@ from typing import Optional
 from collections import deque
 
 
-class MSG_TYPES(Enum):
+class PACKET_TYPES(Enum):
     MSG = 0
     PAYLOAD = 1
     INIT = 2
@@ -39,7 +39,7 @@ class PacketReader:
         self.received_bytes = 0
         self.packet_type = None
 
-    def wait_for_packet(self, timeout: float) -> tuple[Optional[MSG_TYPES], list]:
+    def wait_for_packet(self, timeout: float) -> tuple[Optional[PACKET_TYPES], list]:
         """
         Waits for a packet to be fully received.
 
@@ -56,7 +56,7 @@ class PacketReader:
 
         raise TimeoutError
     
-    def handle_byte(self, byte) -> Optional[tuple[Optional[MSG_TYPES], list]]:
+    def handle_byte(self, byte) -> Optional[tuple[Optional[PACKET_TYPES], list]]:
         """
         Handles a received byte.
 
@@ -82,7 +82,7 @@ class PacketReader:
 
         if self.received_bytes == 0 and self.packet_type == None:  # First byte is packet type
             try:
-                self.packet_type = MSG_TYPES(byte)
+                self.packet_type = PACKET_TYPES(byte)
             except ValueError:
                 logging.warning(f"Unsupported PackageType {byte}")
             
@@ -92,7 +92,7 @@ class PacketReader:
         self.in_escape = False
         return None
 
-    def read_packet(self) -> Optional[tuple[Optional[MSG_TYPES], list]]:
+    def read_packet(self) -> Optional[tuple[Optional[PACKET_TYPES], list]]:
         """
         Reads a packet from the serial port.
 

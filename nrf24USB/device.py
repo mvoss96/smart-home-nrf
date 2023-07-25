@@ -6,7 +6,7 @@ import queue
 import logging
 from typing import Optional
 
-from .packet_reader import PacketReader, SpecialBytes, MSG_TYPES
+from .packet_reader import PacketReader, SpecialBytes, PACKET_TYPES
 
 
 class NRF24Device:
@@ -52,7 +52,7 @@ class NRF24Device:
 
         # Try to Read the INIT message of the device
         (type, data) = self.reader.wait_for_packet(timeout=2.0)
-        if type != MSG_TYPES.INIT or data == None or len(data) != 5:
+        if type != PACKET_TYPES.INIT or data == None or len(data) != 5:
             raise ConnectionError("Device did not send correct INIT message!")
         self.firmware_version = data[0]  # uint8_t
         self.serial_nr = data[1:5]  # 32-bit serial number
@@ -62,16 +62,16 @@ class NRF24Device:
 
         # Send the Host INIT message containing the channel and address
         self.serial_port.reset_input_buffer()  # Clear Input Buffer
-        self.send_packet(bytes([self.channel, self.address]), MSG_TYPES.INIT)
+        self.send_packet(bytes([self.channel, self.address]), PACKET_TYPES.INIT)
         # Wait for the OK Message
         time.sleep(0.5)
         (type, _) = self.reader.wait_for_packet(timeout=1.0)
-        if type != MSG_TYPES.OK:
+        if type != PACKET_TYPES.OK:
             raise ConnectionError("Device did not react correctly to Host INIT message")
         logging.info("Device initialized successfully!")
         self.connected = True
 
-    def send_packet(self, data: bytes, msg_type: MSG_TYPES):
+    def send_packet(self, data: bytes, msg_type: PACKET_TYPES):
         """
         Sends packet to the NRF24USB device. Takes bytes of data and message type as arguments.
         """
@@ -96,13 +96,13 @@ class NRF24Device:
         with self.lock:
             print(f"send to id:{destination} {raw_msg_hex}")
 
-            self.send_packet(bytes([destination, require_ack]) + bytes(data), MSG_TYPES.MSG)
+            self.send_packet(bytes([destination, require_ack]) + bytes(data), PACKET_TYPES.MSG)
             if not require_ack:
                 return []
             (recv_type, recv_data) = self.reader.wait_for_packet(timeout=0.5)
-            if recv_type is MSG_TYPES.OK:
+            if recv_type is PACKET_TYPES.OK:
                 return recv_data
-            elif recv_type is MSG_TYPES.ERROR:
+            elif recv_type is PACKET_TYPES.ERROR:
                 return None
             else:
                 logging.warning(f"Did not receive correct response to send_msg {recv_type} {recv_data}")
@@ -115,25 +115,25 @@ class NRF24Device:
         while True:
             try:
                 (type, data) = self.msg_queue.get(block=True, timeout=0)
-                if type is MSG_TYPES.MSG:
+                if type is PACKET_TYPES.MSG:
                     return data
             except queue.Empty:
                 return None
 
-    def handle_packet(self, packet_type: MSG_TYPES, packet_data: list[int]):
+    def handle_packet(self, packet_type: PACKET_TYPES, packet_data: list[int]):
         """
         Handles packet based on the type. Logs error for ERROR type, attempts to reconnect for INIT type, 
         puts the message into the queue for MSG type, and logs warning for other types.
         """
-        if packet_type == MSG_TYPES.ERROR:
+        if packet_type == PACKET_TYPES.ERROR:
             logging.error(
                 f"NRF24USB Device reported ERROR: {bytes(packet_data).decode(errors='ignore') if packet_data is not None else ''}"
             )
-        elif packet_type == MSG_TYPES.INIT:  # Device might have restarted attempt a reconnect
+        elif packet_type == PACKET_TYPES.INIT:  # Device might have restarted attempt a reconnect
             logging.warning("NRF24USB Device appears to have reset!")
             self.connected = False
             self.initialize_device()
-        elif packet_type == MSG_TYPES.MSG:
+        elif packet_type == PACKET_TYPES.MSG:
             logging.debug(f"Put packet in queque {packet_type} {packet_data}")
             self.msg_queue.put((packet_type, packet_data))  # Put the message into the queue
         else:

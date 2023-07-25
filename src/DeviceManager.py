@@ -2,9 +2,9 @@ from nrf24USB import NRF24Device
 from nrf24Smart import DeviceMessage, HostMessage, MSG_TYPES, supported_devices, DeviceStatus
 import time
 from typing import Type, Optional
-from DBManager import DBManager
+from src.DBManager import DBManager
 from threading import Lock
-from Logger import setup_logger
+from src.Logger import setup_logger
 
 logger = setup_logger()
 
