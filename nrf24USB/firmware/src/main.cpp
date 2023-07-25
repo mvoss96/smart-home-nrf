@@ -3,6 +3,8 @@
 #include "comm.h"
 #include "blinkcodes.h"
 
+//#define TEST_MODE
+
 const uint8_t BUFFER_SIZE = 64;
 uint8_t buffer[BUFFER_SIZE];
 
@@ -14,6 +16,10 @@ void setup()
   Serial.begin(SERIAL_SPEED);
   long lastInitMsg = -10000;
 
+#ifdef TEST_MODE
+  testConnection(101, 0);
+#else
+
   while (true)
   {
     if (millis() - lastInitMsg > 500)
@@ -21,7 +27,7 @@ void setup()
       sendInitMessage();
       lastInitMsg = millis();
     }
-    delay(10); // Short delay to let the host read the message
+    delay(100); // Short delay to let the host read the message
     int packetSize = readDataFromSerial(buffer, BUFFER_SIZE);
     if (packetSize == 2) // Check if a correct packet was successfully received
     {
@@ -45,11 +51,24 @@ void setup()
       }
     }
   }
-  // testConnection(100, 1);
+
+#endif
 }
 
 void loop()
 {
+#ifdef TEST_MODE
+  static long tm = millis();
+  static const uint8_t testmsg[] = {0, 182, 68, 225, 237, 5, 2, 205};
+  if (millis() - tm > 1000)
+  {
+    //bool res = nrfSend(1, (void *)&testmsg, sizeof(testmsg), true);
+    tm = millis();
+    Serial.print("res: ");
+    Serial.println(res);
+  }
+
+#else
   // Check if a serial message was received
   int packetSize = readDataFromSerial(buffer, BUFFER_SIZE);
   if (packetSize > 0)
@@ -71,12 +90,13 @@ void loop()
       nrfSend(destinationID, buffer + 3, packetSize - 2, static_cast<bool>(requireAck));
     }
   }
+#endif
 
   // uint8_t msg[] = {1,0,2};
   // nrfSend(0, msg, 3, true);
   // blinkCode(BLINK_ONCE);
   // delay(100);
   // Listen for nrf messages
-  
+
   nrfListen();
 }

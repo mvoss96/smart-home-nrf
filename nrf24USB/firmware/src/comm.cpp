@@ -17,7 +17,7 @@ bool testConnection(uint8_t channel, uint8_t address)
     if (!_radio.init(address, PIN_RADIO_CE, PIN_RADIO_CSN, NRFLite::BITRATE250KBPS, channel))
     {
         blinkCode(BLINK_INIT_ERROR);
-        //Serial.println("nrf error");
+        // Serial.println("nrf error");
         return false;
     }
     blinkCode(BLINK_INIT_OK);
@@ -90,10 +90,12 @@ void sendInitMessage()
  */
 void nrfListen()
 {
-    if (uint8_t packetSize = _radio.hasData(); packetSize)
+    // Init buffer to 0;
+    uint8_t buf[32] = {0};
+
+    int packetSize =  _radio.hasData();
+    if (packetSize > 0)
     {
-        Serial.println(packetSize);
-        uint8_t buf[32] = {0}; // Init buffer to 0;
         _radio.readData(&buf);
         sendPacket(buf, packetSize, MSG_TYPES::MSG);
     }
@@ -110,6 +112,7 @@ void nrfListen()
  */
 bool nrfSend(uint8_t destination, void *data, uint8_t length, bool requireAck)
 {
+    digitalWrite(PIN_LED, LOW);
     bool result = (_radio.send(destination, data, length, requireAck ? NRFLite::REQUIRE_ACK : NRFLite::NO_ACK) == 1);
     if (!result)
     {
@@ -119,6 +122,7 @@ bool nrfSend(uint8_t destination, void *data, uint8_t length, bool requireAck)
     {
         readAckPayload();
     }
+    digitalWrite(PIN_LED, HIGH);
     return result;
 }
 
@@ -135,6 +139,15 @@ uint8_t readAckPayload()
     {
         _radio.readData(buff);
     }
+
+    // Serial.print("length: ");
+    // Serial.print(length);
+    // Serial.print(" ");
+    // for(int i = 0; i< length; i++){
+    //     Serial.print((int)buff[i]);
+    //     Serial.print(" ");
+    // }
+    // Serial.println();
     sendPacket(buff, length, MSG_TYPES::OK);
     return length;
 }

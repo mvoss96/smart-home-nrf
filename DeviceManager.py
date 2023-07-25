@@ -11,7 +11,8 @@ logger = setup_logger()
 class DeviceManager:
     def __init__(self, db_manager: DBManager):
         # Initializing the NRF24Device
-        self.device = NRF24Device("/dev/NRF24USB", channel=101, address=0)
+        #self.device = NRF24Device("/dev/NRF24USB", channel=101, address=0)
+        self.device = NRF24Device("COM3", channel=101, address=0)
 
         # Initialize the lock
         self.comm_lock = Lock()
@@ -40,7 +41,6 @@ class DeviceManager:
         Sends a message to a device given its device ID and the raw message data.
         """
         with self.comm_lock:
-            #print(f"send: {device_id} {raw_msg}")
             return self.device.send_msg(device_id, raw_msg, require_ack)
 
     def init_new_device(self, msg: DeviceMessage):

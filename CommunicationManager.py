@@ -143,7 +143,9 @@ class CommunicationManager:
                     timestamp = datetime.strptime(device["status"]["timestamp"], "%Y-%m-%d %H:%M:%S")
                     elapsed_time = current_time - timestamp.timestamp()
                     if elapsed_time > 5:
+                        #time.sleep(1)
                         self.poll_device(uuid)
+                        #time.sleep(99999)
                 except KeyError:
                     pass
 
@@ -175,6 +177,7 @@ class CommunicationManager:
             logger.warn(f"Retrying send GET message to id: {device['id']}")
             time.sleep(0.2)
         logger.error(f"Failed to send GET message to device:{device['type']} with uuid:{device['uuid']}")
+
 
     def set_device_param(self, uuid: list[int], parameter: str, new_val: str) -> bool:
         """

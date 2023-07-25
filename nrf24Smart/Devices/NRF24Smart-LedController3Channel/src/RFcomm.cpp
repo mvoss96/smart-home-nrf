@@ -15,9 +15,14 @@ uint8_t nrfSend(uint8_t toRadioId, void *data, uint8_t length, NRFLite::SendType
 {
     if (LED_BLINK_ONMESSAGE)
     {
-        blink(PIN_LED1, 1, 100);
+        digitalWrite(PIN_LED1, LOW);
     }
-    return _radio.send(SERVER_RADIO_ID, data, length, sendType);
+    uint8_t res = _radio.send(SERVER_RADIO_ID, data, length, sendType);
+    if (LED_BLINK_ONMESSAGE)
+    {
+        digitalWrite(PIN_LED1, HIGH);
+    }
+    return res;
 }
 
 void resetEEPROM()
@@ -161,6 +166,14 @@ void sendStatus()
     ClientPacket pck(radioID, MSG_TYPES::STATUS, (uint8_t *)&status, sizeof(status));
     if (pck.getInitialized())
     {
+        Serial.print("Send pck with length: ");
+        Serial.print(pck.getSize());
+        Serial.print(" ");
+        for (int i = 0; i<pck.getSize(); i ++){
+            Serial.print((int)(((uint8_t*)&pck)[i]), HEX);
+            Serial.print(" ");
+        }
+        Serial.println();
         nrfSend(SERVER_RADIO_ID, &pck, pck.getSize());
     }
     else

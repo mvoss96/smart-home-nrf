@@ -7,6 +7,8 @@
 void (*resetFunc)(void) = 0;
 volatile bool btnPressed = false;
 
+uint8_t ackData[4] = {10, 11, 12, 13};
+
 ISR(PCINT1_vect)
 {
   btnPressed = !digitalRead(PIN_BTN1);
@@ -58,6 +60,8 @@ void loop()
     connectToServer();
   }
 
+  //_radio.addAckData(&ackData, sizeof(ackData));
+
   // Listen for new Messages
   uint8_t packetSize = _radio.hasData();
   uint8_t buf[32] = {0};
@@ -69,7 +73,7 @@ void loop()
     {
       if (LED_BLINK_ONMESSAGE)
       {
-        blink(PIN_LED2, 1, 100);
+        digitalWrite(PIN_LED2, LOW);
       }
       Serial.print(millis());
       Serial.print(" ");
@@ -89,6 +93,10 @@ void loop()
         break;
       default:
         Serial.println("-> Unsupported message received!");
+      }
+      if (LED_BLINK_ONMESSAGE)
+      {
+        digitalWrite(PIN_LED2, HIGH);
       }
     }
     else
