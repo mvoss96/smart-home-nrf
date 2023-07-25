@@ -41,7 +41,7 @@ class SmartHome:
     def start(self):
         self.start_thread_and_catch_exceptions(self.webserver_manager.run)
         time.sleep(1) # Wait for server
-        #self.start_thread_and_catch_exceptions(self.communication_manager.listen)
+        self.start_thread_and_catch_exceptions(self.communication_manager.listen)
         self.start_thread_and_catch_exceptions(self.communication_manager.update_all_devices)
 
 if __name__ == "__main__":

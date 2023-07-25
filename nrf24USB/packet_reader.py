@@ -3,6 +3,7 @@ import logging
 import time
 from enum import Enum
 from typing import Optional
+from collections import deque
 
 
 class MSG_TYPES(Enum):
@@ -28,6 +29,7 @@ class SpecialBytes:
 class PacketReader:
     def __init__(self, port: serial.Serial):
         self.port = port
+        self.intermediate_buffer = deque()
         self.reset_buffer()
 
     def reset_buffer(self):
@@ -45,41 +47,52 @@ class PacketReader:
                 return pck
 
         raise TimeoutError
+    
+    def handle_byte(self, byte):
+        #print("read: ", byte)
+        if not self.in_escape:  # Handle Special Bytes
+            if byte == SpecialBytes.ESCAPE_BYTE:
+                #print("escape byte")
+                self.in_escape = True
+                return None
+            elif byte == SpecialBytes.START_BYTE:
+                #print("start byte")
+                self.reset_buffer()  # Reset the Data Array when a new packet starts
+                return None
+            elif byte == SpecialBytes.END_BYTE:
+                #print("end byte")
+                logging.info(f"Read Packet End: {self.packet_type} {self.data}")
+                packet = (self.packet_type, self.data)
+                self.reset_buffer()
+                return packet
+
+        if self.received_bytes == 0 and self.packet_type == None:  # First byte is packet type
+            try:
+                self.packet_type = MSG_TYPES(byte)
+            except ValueError:
+                logging.warning(f"Unsupported PackageType {byte}")
+            
+        else:
+            self.data.append(byte)
+            self.received_bytes += 1
+        self.in_escape = False
+        return None
 
     def read_packet(self) -> Optional[tuple[Optional[MSG_TYPES], list]]:
         try:
-            if (waiting := self.port.in_waiting) > 0:
-                byte = int.from_bytes(self.port.read(), byteorder='big') # Read Single Byte
-                #print("read: ", byte)
-                if not self.in_escape:  # Handle Special Bytes
-                    if byte == SpecialBytes.ESCAPE_BYTE:
-                        #print("escape byte")
-                        self.in_escape = True
-                        return None
-                    elif byte == SpecialBytes.START_BYTE:
-                        #print("start byte")
-                        self.reset_buffer()  # Reset the Data Array when a new packet starts
-                        return None
-                    elif byte == SpecialBytes.END_BYTE:
-                        #print("end byte")
-                        logging.info(f"Read Packet End: {self.packet_type} {self.data}")
-                        packet = (self.packet_type, self.data)
-                        self.reset_buffer()
-                        return packet
+            if self.port.in_waiting > 0:
+                byte_data = self.port.read_all()
+                #print(byte_data)
+                if byte_data is not None:
+                    self.intermediate_buffer.extend(byte_data)
 
-                if self.received_bytes == 0 and self.packet_type == None:  # First byte is packet type
-                    try:
-                        self.packet_type = MSG_TYPES(byte)
-                    except ValueError:
-                        logging.warning(f"Unsupported PackageType {byte}")
-                    
-                else:
-                    self.data.append(byte)
-                    self.received_bytes += 1
-                self.in_escape = False
+            while len(self.intermediate_buffer) > 0:
+                byte = self.intermediate_buffer.popleft()
+                pck = self.handle_byte(byte)
+                if pck is not None:
+                    return pck
+            return None
 
-            else:
-                return None
 
         except serial.SerialException as e:
             logging.exception(f"A SerialException occured: {e}")

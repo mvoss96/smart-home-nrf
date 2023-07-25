@@ -112,7 +112,7 @@ void nrfListen()
  */
 bool nrfSend(uint8_t destination, void *data, uint8_t length, bool requireAck)
 {
-    digitalWrite(PIN_LED, LOW);
+    //digitalWrite(PIN_LED, LOW);
     bool result = (_radio.send(destination, data, length, requireAck ? NRFLite::REQUIRE_ACK : NRFLite::NO_ACK) == 1);
     if (!result)
     {
@@ -122,7 +122,7 @@ bool nrfSend(uint8_t destination, void *data, uint8_t length, bool requireAck)
     {
         readAckPayload();
     }
-    digitalWrite(PIN_LED, HIGH);
+    //digitalWrite(PIN_LED, HIGH);
     return result;
 }
 
