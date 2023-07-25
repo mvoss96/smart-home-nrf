@@ -33,12 +33,20 @@ class PacketReader:
         self.reset_buffer()
 
     def reset_buffer(self):
+        """Resets the buffer and other related flags/counts for a new packet."""
         self.in_escape = False
         self.data = []
         self.received_bytes = 0
         self.packet_type = None
 
     def wait_for_packet(self, timeout: float) -> tuple[Optional[MSG_TYPES], list]:
+        """
+        Waits for a packet to be fully received.
+
+        :param timeout: The maximum time to wait for a packet (in seconds).
+        :raises TimeoutError: If a packet isn't received within the timeout.
+        :return: The received packet's type and data as a tuple.
+        """
         start_time = time.time()
         self.reset_buffer()
         while time.time() - start_time < timeout:
@@ -48,7 +56,13 @@ class PacketReader:
 
         raise TimeoutError
     
-    def handle_byte(self, byte):
+    def handle_byte(self, byte) -> Optional[tuple[Optional[MSG_TYPES], list]]:
+        """
+        Handles a received byte.
+
+        :param byte: The received byte.
+        :return: The received packet's type and data as a tuple, or None if packet isn't complete.
+        """
         #print("read: ", byte)
         if not self.in_escape:  # Handle Special Bytes
             if byte == SpecialBytes.ESCAPE_BYTE:
@@ -79,20 +93,20 @@ class PacketReader:
         return None
 
     def read_packet(self) -> Optional[tuple[Optional[MSG_TYPES], list]]:
-        try:
-            if self.port.in_waiting > 0:
-                byte_data = self.port.read_all()
-                #print(byte_data)
-                if byte_data is not None:
-                    self.intermediate_buffer.extend(byte_data)
+        """
+        Reads a packet from the serial port.
 
-            while len(self.intermediate_buffer) > 0:
-                byte = self.intermediate_buffer.popleft()
-                pck = self.handle_byte(byte)
-                if pck is not None:
-                    return pck
-            return None
+        :return: The received packet's type and data as a tuple, or None if no packet is available.
+        """
+        if self.port.in_waiting > 0:
+            byte_data = self.port.read_all()
+            #print(byte_data)
+            if byte_data is not None:
+                self.intermediate_buffer.extend(byte_data)
 
-
-        except serial.SerialException as e:
-            logging.exception(f"A SerialException occured: {e}")
+        while len(self.intermediate_buffer) > 0:
+            byte = self.intermediate_buffer.popleft()
+            pck = self.handle_byte(byte)
+            if pck is not None:
+                return pck
+        return None
