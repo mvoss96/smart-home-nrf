@@ -49,8 +49,8 @@ class NRF24Device:
         self.serial_port.reset_input_buffer() # Clear Input Buffer
         self.send_packet(bytes([self.channel, self.address]), MSG_TYPES.INIT)
         # Wait for the OK Message
-        time.sleep(0.5)
-        (type, _) = self.reader.wait_for_packet(timeout=2)
+        #time.sleep(0.5)
+        (type, _) = self.reader.wait_for_packet(timeout=1.0)
         if type != MSG_TYPES.OK:
             raise ConnectionError("Device did not react correctly to Host INIT message")
         logging.info("Device initialized successfully!")

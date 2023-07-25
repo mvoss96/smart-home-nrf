@@ -143,8 +143,9 @@ class CommunicationManager:
                     timestamp = datetime.strptime(device["status"]["timestamp"], "%Y-%m-%d %H:%M:%S")
                     elapsed_time = current_time - timestamp.timestamp()
                     if elapsed_time > 5:
+                        pass
                         #time.sleep(1)
-                        self.poll_device(uuid)
+                        #self.poll_device(uuid)
                         #time.sleep(99999)
                 except KeyError:
                     pass

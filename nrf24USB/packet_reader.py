@@ -41,6 +41,7 @@ class PacketReader:
         self.reset_buffer()
         while time.time() - start_time < timeout:
             if (pck := self.read_packet()) is not None:
+                logging.info(f"time needed: {time.time() - start_time}")
                 return pck
 
         raise TimeoutError
