@@ -1,7 +1,7 @@
 from tinydb import TinyDB, Query
 import random
 from threading import Lock
-from Logger import setup_logger
+from src.Logger import setup_logger
 
 logger = setup_logger()
 
@@ -9,7 +9,7 @@ logger = setup_logger()
 class DBManager:
     def __init__(self):
         # Initialize the TinyDB instance
-        self.db = TinyDB("db2.json", indent=4)
+        self.db = TinyDB("db.json", indent=4)
 
         # Initialize the lock
         self.db_lock = Lock()

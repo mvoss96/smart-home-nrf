@@ -2,11 +2,11 @@ from flask import Flask, jsonify, render_template, request, Response
 from flask_cors import CORS
 from flask_httpauth import HTTPBasicAuth
 from threading import Thread
-from DBManager import DBManager
-from CommunicationManager import CommunicationManager
+from src.DBManager import DBManager
+from src.CommunicationManager import CommunicationManager
 import json
 import time
-from Logger import setup_logger
+from src.Logger import setup_logger
 
 logger = setup_logger()
 

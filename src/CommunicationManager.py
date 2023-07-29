@@ -1,8 +1,8 @@
 from nrf24Smart import DeviceMessage, HostMessage, MSG_TYPES
 import time
 from datetime import datetime
-from DeviceManager import DeviceManager
-from Logger import setup_logger
+from src.DeviceManager import DeviceManager
+from src.Logger import setup_logger
 from threading import Event
 
 logger = setup_logger()

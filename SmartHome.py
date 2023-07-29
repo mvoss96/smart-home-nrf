@@ -1,12 +1,11 @@
 import threading
-import sys
 import time
 
-from DBManager import DBManager
-from DeviceManager import DeviceManager
-from CommunicationManager import CommunicationManager
-from WebServerManager import WebServerManager
-from Logger import setup_logger
+from src.DBManager import DBManager
+from src.DeviceManager import DeviceManager
+from src.CommunicationManager import CommunicationManager
+from src.WebServerManager import WebServerManager
+from src.Logger import setup_logger
 
 
 logger = setup_logger()

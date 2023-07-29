@@ -9,3 +9,4 @@ db2.json
 .vscode/*
 __pycache__/**
 *.log
+*.pyc
