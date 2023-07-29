@@ -311,8 +311,8 @@ extern NRFLite _radio;
 
 void resetEEPROM();
 void printEEPROM(int n = 0);
-void loadFromEEPROM();
+//void loadFromEEPROM();
 
 void radioInit();
 void connectToServer();
-void sendStatus();
+void listenForPackets();

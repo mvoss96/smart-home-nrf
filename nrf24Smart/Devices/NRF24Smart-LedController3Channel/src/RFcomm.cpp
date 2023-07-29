@@ -53,7 +53,12 @@ void printEEPROM(int n)
         Serial.print("Address: ");
         Serial.print(i);
         Serial.print(" Value: ");
-        Serial.println(val, HEX);
+        if (val < 16)
+            Serial.print('0');
+        Serial.print(val, HEX);
+        Serial.print(" (");
+        Serial.print(val);
+        Serial.println(")");
     }
 }
 
@@ -169,8 +174,9 @@ void sendStatus()
         Serial.print("Send pck with length: ");
         Serial.print(pck.getSize());
         Serial.print(" ");
-        for (int i = 0; i<pck.getSize(); i ++){
-            Serial.print((int)(((uint8_t*)&pck)[i]), HEX);
+        for (size_t i = 0; i < pck.getSize(); i++)
+        {
+            Serial.print((int)(((uint8_t *)&pck)[i]), HEX);
             Serial.print(" ");
         }
         Serial.println();
@@ -180,4 +186,65 @@ void sendStatus()
     {
         Serial.println("Could not send not initialized ClientPacket!");
     }
+}
+
+bool checkUUID(ServerPacket pck)
+{
+    for (size_t i = 0; i < sizeof(serverUUID) / sizeof(serverUUID[0]); i++)
+    {
+        if (pck.getUUID()[i] != serverUUID[i])
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+void listenForPackets()
+{
+  // Listen for new Messages
+  uint8_t packetSize = _radio.hasData();
+  uint8_t buf[32] = {0};
+  if (packetSize > 0)
+  {
+    _radio.readData(&buf);
+    ServerPacket pck(buf, packetSize);
+    if (!pck.isValid())
+    {
+      Serial.println("WARNING: Invalid Packet received!");
+      return;
+    }
+    if (!checkUUID(pck))
+    {
+      Serial.println("WARNING: Received Packet UUID mismatch!");
+      return;
+    }
+    if (LED_BLINK_ONMESSAGE)
+    {
+      digitalWrite(PIN_LED2, LOW);
+    }
+    Serial.print(millis());
+    Serial.print(" ");
+    switch ((MSG_TYPES)pck.getTYPE())
+    {
+    case MSG_TYPES::RESET:
+      Serial.println("-> RESET message received...");
+      resetEEPROM();
+      break;
+    case MSG_TYPES::GET:
+      Serial.println("-> GET message received...");
+      sendStatus();
+      break;
+    case MSG_TYPES::SET:
+      Serial.println("-> SET message received... ");
+      setStatus(pck.getDATA(), pck.getSize());
+      break;
+    default:
+      Serial.println("-> Unsupported message received!");
+    }
+    if (LED_BLINK_ONMESSAGE)
+    {
+      digitalWrite(PIN_LED2, HIGH);
+    }
+  }
 }

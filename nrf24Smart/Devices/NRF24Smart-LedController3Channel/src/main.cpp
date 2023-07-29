@@ -7,8 +7,6 @@
 void (*resetFunc)(void) = 0;
 volatile bool btnPressed = false;
 
-uint8_t ackData[4] = {10, 11, 12, 13};
-
 ISR(PCINT1_vect)
 {
   btnPressed = !digitalRead(PIN_BTN1);
@@ -32,8 +30,8 @@ void setup()
 {
   Serial.begin(115200);
   Serial.println(DEVICE_TYPE);
-  Serial.println(readVcc());
-  Serial.println(batteryLevel());
+  // Serial.println(readVcc());
+  // Serial.println(batteryLevel());
   setPinModes();
   delay(500);
   digitalWrite(PIN_LED1, HIGH);
@@ -59,49 +57,5 @@ void loop()
     Serial.println("Connecting to Server:");
     connectToServer();
   }
-
-  //_radio.addAckData(&ackData, sizeof(ackData));
-
-  // Listen for new Messages
-  uint8_t packetSize = _radio.hasData();
-  uint8_t buf[32] = {0};
-  if (packetSize > 0)
-  {
-    _radio.readData(&buf);
-    ServerPacket pck(buf, packetSize);
-    if (pck.isValid())
-    {
-      if (LED_BLINK_ONMESSAGE)
-      {
-        digitalWrite(PIN_LED2, LOW);
-      }
-      Serial.print(millis());
-      Serial.print(" ");
-      switch ((MSG_TYPES)pck.getTYPE())
-      {
-      case MSG_TYPES::RESET:
-        Serial.println("-> RESET message received...");
-        resetEEPROM();
-        break;
-      case MSG_TYPES::GET:
-        Serial.println("-> GET message received...");
-        sendStatus();
-        break;
-      case MSG_TYPES::SET:
-        Serial.println("-> SET message received... ");
-        setStatus(pck.getDATA(), pck.getSize());
-        break;
-      default:
-        Serial.println("-> Unsupported message received!");
-      }
-      if (LED_BLINK_ONMESSAGE)
-      {
-        digitalWrite(PIN_LED2, HIGH);
-      }
-    }
-    else
-    {
-      Serial.println("Invalid Packet received!");
-    }
-  }
+  listenForPackets();
 }
