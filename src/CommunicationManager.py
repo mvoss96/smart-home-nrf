@@ -37,6 +37,20 @@ class CommunicationManager:
         if class_obj == None:
             logger.error(f"Unsupported Device of type:{device['type']} in DB!")
             return
+        
+        # Check that id and uuid match the db
+        if msg.ID != device.get("id"):
+            logger.warning(
+                f"Mismatched ID and UUID! Device with UUID:{msg.UUID} reports ID:{msg.ID} instead of {device.get('id')}")
+            return
+        
+        # Check the firmware Version
+        if msg.FIRMWARE_VERSION not in class_obj.supported_versions:
+            logger.error(f"Device with UUID {msg.UUID} reports unsupported Firmware Version {msg.FIRMWARE_VERSION}")
+        if msg.FIRMWARE_VERSION != device.get("version"):
+            logger.warning(
+                f"Device with UUID {msg.UUID} changed Firmware Version from {device.get('version')} to {msg.FIRMWARE_VERSION}")
+        
         # Create an instance of the class
         try:
             instance = class_obj(msg.DATA)

@@ -52,7 +52,13 @@ class DeviceManager:
         logger.info(f"New Device: {device_type} {msg}")
 
         # Check if the class exists in the supported_devices list
-        if self.get_supported_device(device_type) == None:
+        if (device_class := self.get_supported_device(device_type)) == None:
+            logger.warning(f"New Device {device_type} not in supported_devices list!")
+            return
+
+        # Check if device firmware version is supported
+        if msg.FIRMWARE_VERSION not in device_class.supported_versions:
+            logger.warning(f"New Device {device_type} has unsupported version {msg.FIRMWARE_VERSION}")
             return
 
         # Check if a device with the UUID exists

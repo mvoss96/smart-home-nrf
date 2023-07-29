@@ -61,8 +61,8 @@ function populateTable(device, table) {
     let statusList = document.createElement('ul');
     for (let prop in device.status) {
         let listItem = document.createElement('li');
-        if (prop === "power") { listItem.textContent = `Power: ${device.status["power"] ? "on" : "Off"}`; }
-        else { listItem.textContent = `${prop.charAt(0).toUpperCase() + prop.slice(1)}: ${device.status[prop]}`; }
+        if (prop === "power") { listItem.textContent = `power: ${device.status["power"] ? "on" : "Off"}`; }
+        else { listItem.textContent = `${prop}: ${device.status[prop]}`; }
         statusList.appendChild(listItem);
     }
     let statusCell = row.insertCell();
