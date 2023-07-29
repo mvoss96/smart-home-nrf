@@ -3,6 +3,7 @@ from typing import Type, Optional
 import struct
 from nrf24Smart import SetMessage, CHANGE_TYPES
 
+
 class DeviceStatus:
     settable_parameters = []
     supported_versions = []
@@ -11,6 +12,10 @@ class DeviceStatus:
         raise NotImplementedError()
 
     def get_status(self) -> dict:
+        raise NotImplementedError()
+    
+    @classmethod
+    def get_param(cls, parameter: str, status: dict) -> Optional[str]:
         raise NotImplementedError()
 
     @classmethod

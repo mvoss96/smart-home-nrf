@@ -1,11 +1,24 @@
 import time
+import logging
 from typing import Optional
 from .devices import DeviceStatus, SetMessage, CHANGE_TYPES
 
 
 class LedController3Channel(DeviceStatus):
-    settable_parameters = ["power", "brightness", "ch_1", "ch_2", "ch_3", "rgb", "num_channels", "output_power_limit"]
+    settable_parameters = [
+        "power",
+        "brightness",
+        "ch_1",
+        "ch_2",
+        "ch_3",
+        "rgb",
+        "num_channels",
+        "output_power_limit",
+        "cct",
+    ]
     supported_versions = [1]
+    min_cct = 2500
+    max_cct = 6500
 
     def __init__(self, data: list[int]):
         self.valid = False
@@ -36,6 +49,22 @@ class LedController3Channel(DeviceStatus):
         return status
 
     @classmethod
+    def get_param(cls, parameter: str, status: dict) -> Optional[str]:
+        if status is None:
+            return None
+        if parameter == "rgb":
+            return f"{status.get('ch_1')},{status.get('ch_2')},{status.get('ch_3')}"
+        elif parameter == "cct":
+            ch_1 = status.get("ch_1")
+            ch_2 = status.get("ch_2")
+            if ch_1 is None or ch_2 is None:
+                return None
+            mixing_factor = ((ch_2 - ch_1) / 255.0 + 1) / 2
+            kelvin = int(cls.min_cct + (cls.max_cct - cls.min_cct) * mixing_factor)
+            return str(kelvin)
+        return status.get(parameter)
+
+    @classmethod
     def create_set_message(cls, param: str, new_val: str) -> Optional[SetMessage]:
         index = cls.settable_parameters.index(param)
         if param == "power":
@@ -55,6 +84,19 @@ class LedController3Channel(DeviceStatus):
         elif param == "output_power_limit":
             data = cls.parse_int(new_val)
             print("limit:", new_val, data)
+        elif param == "cct":
+            try:
+                kelvin = int(new_val)
+            except ValueError:
+                return None
+            if kelvin > cls.max_cct or kelvin < cls.min_cct:
+                logging.warning("parameter cct out of bouds")
+                kelvin = max(cls.min_cct, min(kelvin, cls.max_cct))
+            mixing_factor = (kelvin - cls.min_cct) / (cls.max_cct - cls.min_cct)
+            ch_1 = (1 - mixing_factor) * 255.0
+            ch_2 = mixing_factor * 255.0
+            index = cls.settable_parameters.index("rgb")
+            data = [int(ch_1), int(ch_2), 0]
         else:
             return None
         if data is None:

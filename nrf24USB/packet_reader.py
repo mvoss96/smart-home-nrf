@@ -4,6 +4,7 @@ import time
 from enum import Enum
 from typing import Optional
 from collections import deque
+from threading import Lock
 
 
 class PACKET_TYPES(Enum):
@@ -31,6 +32,7 @@ class PacketReader:
         self.port = port
         self.intermediate_buffer = deque()
         self.reset_buffer()
+        self.lock = Lock()
 
     def reset_buffer(self):
         """Resets the buffer and other related flags/counts for a new packet."""
@@ -47,14 +49,15 @@ class PacketReader:
         :raises TimeoutError: If a packet isn't received within the timeout.
         :return: The received packet's type and data as a tuple.
         """
-        start_time = time.time()
-        self.reset_buffer()
-        while time.time() - start_time < timeout:
-            if (pck := self.read_packet()) is not None:
-                logging.info(f"time needed: {time.time() - start_time}")
-                return pck
+        with self.lock:
+            start_time = time.time()
+            self.reset_buffer()
+            while time.time() - start_time < timeout:
+                if (pck := self.read_packet()) is not None:
+                    logging.info(f"time needed: {time.time() - start_time}")
+                    return pck
 
-        raise TimeoutError
+            raise TimeoutError
     
     def handle_byte(self, byte) -> Optional[tuple[Optional[PACKET_TYPES], list]]:
         """

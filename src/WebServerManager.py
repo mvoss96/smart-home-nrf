@@ -115,7 +115,7 @@ class WebServerManager:
 
         @self.app.route("/devices/<device_uuid>/<parameter>", methods=["GET"])
         @self.auth.login_required
-        def gt_device_param(device_uuid, parameter):
+        def get_device_param(device_uuid, parameter):
             """
             Endpoint to get a single parameter of a specific device
             """
@@ -130,7 +130,10 @@ class WebServerManager:
                 return Response(status=400, response="Device does not have a status")
             if parameter == "status":
                 return jsonify(status), 200
-            return jsonify(status.get(parameter)), 200
+            if (value:=self.comm_manager.get_device_param(uuid, parameter))!= None:
+                return jsonify(value), 200
+            else: 
+                return Response(status=400, response="Unsupported parameter")
 
         @self.app.route("/devices/<device_uuid>/<parameter>", methods=["PUT"])
         @self.auth.login_required
