@@ -74,6 +74,9 @@ class PacketReader:
                 self.reset_buffer()  # Reset the Data Array when a new packet starts
                 return None
             elif byte == SpecialBytes.END_BYTE:
+                if self.packet_type is None:
+                    logging.warning(f"END_BYTE received before START_BYTE.")
+                    return None
                 #print("end byte")
                 logging.info(f"Read Packet End: {self.packet_type} {self.data}")
                 packet = (self.packet_type, self.data)
@@ -85,6 +88,7 @@ class PacketReader:
                 self.packet_type = PACKET_TYPES(byte)
             except ValueError:
                 logging.warning(f"Unsupported PackageType {byte}")
+                
             
         else:
             self.data.append(byte)
