@@ -3,29 +3,33 @@
 #include <NRFLite.h>
 #include "config.h"
 #include "power.h"
+#include "control.h"
 
 enum class MSG_TYPES : uint8_t
 {
     ERROR,
     INIT,
     BOOT,
-    OK,
     SET,
-    GET,
     RESET,
     STATUS,
 };
+
+
 
 // Must be max 32 bytes
 class ClientPacket
 {
 private:
+    static uint8_t msgNum;
     uint8_t ID;
     uint8_t UUID[4] = DEVICE_UUID;
     uint8_t MSG_TYPE = (uint8_t)MSG_TYPES::ERROR;
     uint8_t FIRMWARE = FIRMWARE_VERSION;
     uint8_t POWER_TYPE = DEVICE_BATTERY_POWERED;
-    uint8_t DATA[24] = {0}; // DATA contains two checksum bytes
+    uint8_t STATUS_INTERVAL = STATUS_INTERVAL_TIME;
+    uint8_t MSG_NUM = msgNum++;
+    uint8_t DATA[22] = {0}; // DATA contains two checksum bytes
 
     // Internal Variables, not included into the send Packet
     size_t dataSize = 0;
@@ -44,6 +48,8 @@ private:
         sum += MSG_TYPE;
         sum += FIRMWARE;
         sum += POWER_TYPE;
+        sum += STATUS_INTERVAL;
+        sum += MSG_NUM;
         for (size_t i = 0; i < dataSize; i++)
         {
             sum += DATA[i];
@@ -68,6 +74,7 @@ public:
         MSG_TYPE = (uint8_t)type;
         this->dataSize = dataSize;
         ID = id;
+        STATUS_INTERVAL = statusInterval;
         if (DEVICE_BATTERY_POWERED == 1)
         {
             POWER_TYPE = batteryLevel();
@@ -88,6 +95,21 @@ public:
     bool getInitialized()
     {
         return isInitialized;
+    }
+
+    void printData()
+    {
+        Serial.print(": [");
+        size_t s = getSize();
+        for (size_t i = 0; i < s; i++)
+        {
+            Serial.print((int)(((uint8_t *)this)[i]), HEX);
+            if (i < s - 1)
+            {
+                Serial.print(" ");
+            }
+        }
+        Serial.print("] ");
     }
 
     void print()
@@ -115,6 +137,12 @@ public:
         Serial.print(" ");
         Serial.print("POWER: ");
         Serial.print(POWER_TYPE);
+        Serial.print(" ");
+        Serial.print("STATUS_INTERVAL: ");
+        Serial.print(STATUS_INTERVAL);
+        Serial.print(" ");
+        Serial.print("MSG_NUM: ");
+        Serial.print(MSG_NUM);
         Serial.print(" ");
         Serial.print("DATA: ");
         for (size_t i = 0; i < dataSize + 2; i++)
@@ -234,6 +262,21 @@ public:
         return dataSize;
     }
 
+    void printData()
+    {
+        Serial.print(": [");
+        size_t s = getSize();
+        for (size_t i = 0; i < s; i++)
+        {
+            Serial.print((int)(((uint8_t *)this)[i]), HEX);
+            if (i < s - 1)
+            {
+                Serial.print(" ");
+            }
+        }
+        Serial.print("] ");
+    }
+
     void print()
     {
         Serial.print("ServerPacket: ");
@@ -311,7 +354,7 @@ extern NRFLite _radio;
 
 void resetEEPROM();
 void printEEPROM(int n = 0);
-//void loadFromEEPROM();
+// void loadFromEEPROM();
 
 void radioInit();
 void connectToServer();

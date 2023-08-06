@@ -3,12 +3,13 @@
 #include <EEPROM.h>
 #include "RFcomm.h"
 #include "blink.h"
-#include "control.h"
 
 uint8_t radioID = INITIAL_RADIO_ID;
 uint8_t serverUUID[4];
 bool serverConnected = false;
 NRFLite _radio;
+
+uint8_t ClientPacket::msgNum = 0;
 
 // Send fucntion with LED blink
 uint8_t nrfSend(uint8_t toRadioId, void *data, uint8_t length, NRFLite::SendType sendType = NRFLite::REQUIRE_ACK)
@@ -171,20 +172,23 @@ void sendStatus()
     ClientPacket pck(radioID, MSG_TYPES::STATUS, (uint8_t *)&status, sizeof(status));
     if (pck.getInitialized())
     {
-        Serial.print("Send pck with length: ");
+        Serial.print(millis());
+        Serial.print(" <- Send status message with length ");
         Serial.print(pck.getSize());
-        Serial.print(" ");
-        for (size_t i = 0; i < pck.getSize(); i++)
+        pck.printData();
+        //pck.print();
+        if (nrfSend(SERVER_RADIO_ID, &pck, pck.getSize()))
         {
-            Serial.print((int)(((uint8_t *)&pck)[i]), HEX);
-            Serial.print(" ");
+            Serial.println(" Success!");
         }
-        Serial.println();
-        nrfSend(SERVER_RADIO_ID, &pck, pck.getSize());
+        else
+        {
+            Serial.println(" Failed!");
+        }
     }
     else
     {
-        Serial.println("Could not send not initialized ClientPacket!");
+        Serial.println("ERROR: ClientPacket not initialized!");
     }
 }
 
@@ -202,49 +206,56 @@ bool checkUUID(ServerPacket pck)
 
 void listenForPackets()
 {
-  // Listen for new Messages
-  uint8_t packetSize = _radio.hasData();
-  uint8_t buf[32] = {0};
-  if (packetSize > 0)
-  {
-    _radio.readData(&buf);
-    ServerPacket pck(buf, packetSize);
-    if (!pck.isValid())
+    static unsigned long statusTimer = 0;
+    // Listen for new Messages
+    uint8_t packetSize = _radio.hasData();
+    uint8_t buf[32] = {0};
+    if (packetSize > 0)
     {
-      Serial.println("WARNING: Invalid Packet received!");
-      return;
+        _radio.readData(&buf);
+        ServerPacket pck(buf, packetSize);
+        if (!pck.isValid())
+        {
+            Serial.println("WARNING: Invalid Packet received!");
+            return;
+        }
+        if (!checkUUID(pck))
+        {
+            Serial.println("WARNING: Received Packet UUID mismatch!");
+            return;
+        }
+        if (LED_BLINK_ONMESSAGE)
+        {
+            digitalWrite(PIN_LED2, LOW);
+        }
+        Serial.print(millis());
+        Serial.print(" ");
+        switch ((MSG_TYPES)pck.getTYPE())
+        {
+        case MSG_TYPES::RESET:
+            Serial.println("-> RESET message received...");
+            resetEEPROM();
+            delay(1000);
+            break;
+        case MSG_TYPES::SET:
+            Serial.print("-> SET message received ");
+            pck.printData();
+            Serial.println();
+            setStatus(pck.getDATA(), pck.getSize());
+            sendStatus();
+            break;
+        default:
+            Serial.println("-> Unsupported message received!");
+        }
+        if (LED_BLINK_ONMESSAGE)
+        {
+            digitalWrite(PIN_LED2, HIGH);
+        }
     }
-    if (!checkUUID(pck))
+
+    if (millis() - statusTimer >= statusInterval * 1000)
     {
-      Serial.println("WARNING: Received Packet UUID mismatch!");
-      return;
+        sendStatus();
+        statusTimer = millis();
     }
-    if (LED_BLINK_ONMESSAGE)
-    {
-      digitalWrite(PIN_LED2, LOW);
-    }
-    Serial.print(millis());
-    Serial.print(" ");
-    switch ((MSG_TYPES)pck.getTYPE())
-    {
-    case MSG_TYPES::RESET:
-      Serial.println("-> RESET message received...");
-      resetEEPROM();
-      break;
-    case MSG_TYPES::GET:
-      Serial.println("-> GET message received...");
-      sendStatus();
-      break;
-    case MSG_TYPES::SET:
-      Serial.println("-> SET message received... ");
-      setStatus(pck.getDATA(), pck.getSize());
-      break;
-    default:
-      Serial.println("-> Unsupported message received!");
-    }
-    if (LED_BLINK_ONMESSAGE)
-    {
-      digitalWrite(PIN_LED2, HIGH);
-    }
-  }
 }

@@ -13,6 +13,7 @@ int pins[] = {PIN_OUTPUT_R, PIN_OUTPUT_G, PIN_OUTPUT_B};
 
 // Config variables
 unsigned int outputPowerLimit = OUTPUT_POWER_LIMIT;
+uint8_t statusInterval = STATUS_INTERVAL_TIME;
 
 // Function to update LED outputs based on the current status
 void setOutput()
@@ -20,7 +21,7 @@ void setOutput()
     int channelTotal = 0;
 
     // Calculate the channelTotal
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < NUM_LED_CHANNELS; i++)
     {
         channelTotal += *channels[i];
     }
@@ -39,7 +40,7 @@ void setOutput()
     // Serial.println(status.powerScale);
 
     // Loop over each color channel
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < NUM_LED_CHANNELS; i++)
     {
         // If power is off, set output to LOW
         if (!status.power)
@@ -155,7 +156,7 @@ void setStatus(const uint8_t *data, uint8_t length)
 
     switch (msg.varIndex)
     {
-    case 0:
+    case 0: // POWER
         if (msg.changeType == ChangeTypes::SET && msg.valueSize > 0)
         {
             setPower(*msg.newValue);
@@ -169,7 +170,7 @@ void setStatus(const uint8_t *data, uint8_t length)
             Serial.println("ERROR: Unsupported setType for POWER!");
         }
         break;
-    case 1:
+    case 1: // BRIGHTNESS
         if (msg.changeType == ChangeTypes::SET && msg.valueSize > 0)
         {
             setBrightness(*msg.newValue);
@@ -187,9 +188,9 @@ void setStatus(const uint8_t *data, uint8_t length)
             Serial.println("ERROR: Unsupported setType for BRIGHTNESS!");
         }
         break;
-    case 2:
-    case 3:
-    case 4:
+    case 2: // CH_1
+    case 3: // CH_2
+    case 4: // CH_3
         if (msg.changeType == ChangeTypes::SET && msg.valueSize > 0)
         {
             setChannel(msg.varIndex - 2, *msg.newValue);
@@ -208,7 +209,7 @@ void setStatus(const uint8_t *data, uint8_t length)
             Serial.println(msg.varIndex - 2);
         }
         break;
-    case 5:
+    case 5: // RGB
         if (msg.changeType == ChangeTypes::SET && msg.valueSize > 0)
         {
             if (msg.valueSize == 3)
@@ -225,8 +226,8 @@ void setStatus(const uint8_t *data, uint8_t length)
             Serial.println("ERROR: Unsupported setType for RGB!");
         }
         break;
-    case 6:
-        if (msg.changeType == ChangeTypes::SET && msg.valueSize > 0)
+    case 6: // OUTPUT_POWER
+        if (msg.changeType == ChangeTypes::SET)
         {
             if (msg.valueSize == 4)
             {
@@ -241,6 +242,16 @@ void setStatus(const uint8_t *data, uint8_t length)
         else
         {
             Serial.println("ERROR: Unsupported setType for OutputPowerLimit!");
+        }
+        break;
+    case 7: // STATUS_INTERVAL
+        if (msg.changeType == ChangeTypes::SET && msg.valueSize > 0)
+        {
+            statusInterval = max(1, *msg.newValue);
+        }
+        else
+        {
+            Serial.println("ERROR: Unsupported setType for StatusInterval!");
         }
         break;
     default:
