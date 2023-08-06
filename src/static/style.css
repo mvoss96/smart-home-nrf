@@ -41,6 +41,7 @@ td ul {
     list-style-type: none;
     padding: 0;
     margin: 0 10px;
+    text-transform: none;
 }
 
 .small-font {

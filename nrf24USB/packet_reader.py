@@ -4,6 +4,7 @@ import time
 from enum import Enum
 from typing import Optional
 from collections import deque
+from threading import Lock
 
 
 class PACKET_TYPES(Enum):
@@ -31,6 +32,7 @@ class PacketReader:
         self.port = port
         self.intermediate_buffer = deque()
         self.reset_buffer()
+        self.lock = Lock()
 
     def reset_buffer(self):
         """Resets the buffer and other related flags/counts for a new packet."""
@@ -47,14 +49,15 @@ class PacketReader:
         :raises TimeoutError: If a packet isn't received within the timeout.
         :return: The received packet's type and data as a tuple.
         """
-        start_time = time.time()
-        self.reset_buffer()
-        while time.time() - start_time < timeout:
-            if (pck := self.read_packet()) is not None:
-                logging.info(f"time needed: {time.time() - start_time}")
-                return pck
+        with self.lock:
+            start_time = time.time()
+            self.reset_buffer()
+            while time.time() - start_time < timeout:
+                if (pck := self.read_packet()) is not None:
+                    logging.info(f"time needed: {time.time() - start_time}")
+                    return pck
 
-        raise TimeoutError
+            raise TimeoutError
     
     def handle_byte(self, byte) -> Optional[tuple[Optional[PACKET_TYPES], list]]:
         """
@@ -74,6 +77,9 @@ class PacketReader:
                 self.reset_buffer()  # Reset the Data Array when a new packet starts
                 return None
             elif byte == SpecialBytes.END_BYTE:
+                if self.packet_type is None:
+                    logging.warning(f"END_BYTE received before START_BYTE.")
+                    return None
                 #print("end byte")
                 logging.info(f"Read Packet End: {self.packet_type} {self.data}")
                 packet = (self.packet_type, self.data)
@@ -85,6 +91,7 @@ class PacketReader:
                 self.packet_type = PACKET_TYPES(byte)
             except ValueError:
                 logging.warning(f"Unsupported PackageType {byte}")
+                
             
         else:
             self.data.append(byte)

@@ -1,5 +1,5 @@
 from enum import Enum
-
+import logging
 
 class MSG_TYPES(Enum):
     ERROR = 0
@@ -25,6 +25,9 @@ class SetMessage:
         self.changeType = changeType 
         if not isinstance(value, list):
             value = [value]
+        if not all(isinstance(item, int) for item in value):
+            logging.error("value list must only contain ints")
+            value = [0]
         self.valueSize= len(value)
         self.newValue = value
 

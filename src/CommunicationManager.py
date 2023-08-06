@@ -4,6 +4,7 @@ from datetime import datetime
 from src.DeviceManager import DeviceManager
 from src.Logger import setup_logger
 from threading import Event
+from typing import Optional
 
 logger = setup_logger()
 
@@ -37,6 +38,20 @@ class CommunicationManager:
         if class_obj == None:
             logger.error(f"Unsupported Device of type:{device['type']} in DB!")
             return
+        
+        # Check that id and uuid match the db
+        if msg.ID != device.get("id"):
+            logger.warning(
+                f"Mismatched ID and UUID! Device with UUID:{msg.UUID} reports ID:{msg.ID} instead of {device.get('id')}")
+            return
+        
+        # Check the firmware Version
+        if msg.FIRMWARE_VERSION not in class_obj.supported_versions:
+            logger.error(f"Device with UUID {msg.UUID} reports unsupported Firmware Version {msg.FIRMWARE_VERSION}")
+        if msg.FIRMWARE_VERSION != device.get("version"):
+            logger.warning(
+                f"Device with UUID {msg.UUID} changed Firmware Version from {device.get('version')} to {msg.FIRMWARE_VERSION}")
+        
         # Create an instance of the class
         try:
             instance = class_obj(msg.DATA)
@@ -178,22 +193,36 @@ class CommunicationManager:
             time.sleep(0.2)
         logger.error(f"Failed to send GET message to device:{device['type']} with uuid:{device['uuid']}")
 
+    def get_device_param(self, uuid, parameter):
+        """
+        Get a parameter for the device
+        """
+        logger.info(f"get {uuid} parameter: {parameter}")
+        if (device := self.db_manager.search_device_in_db(uuid)) is None:
+            logger.error(f"Device with uuid:{uuid} not in DB!")
+            return None
+        if (class_obj := self.device_manager.get_supported_device(device["type"])) is None:
+            logger.warning(f"{device['type']} not supported")
+            return None
+        if (status := device.get("status")) is None:
+                logger.error(f"Device with uuid:{uuid} does not have a status!")
+                return None
+        return class_obj.get_param(parameter, status)
+
 
     def set_device_param(self, uuid: list[int], parameter: str, new_val: str) -> bool:
         """
         Set the a parameter for the device
         """
         logger.info(f"set {uuid} parameter: {parameter} to new_val: {new_val}")
-        device = self.db_manager.search_device_in_db(uuid)
-        if device is None:
+        if (device := self.db_manager.search_device_in_db(uuid)) is None:
             logger.error(f"Device with uuid:{uuid} not in DB!")
             return False
-        class_obj = self.device_manager.get_supported_device(device["type"])
-        if class_obj is None:
+        if (class_obj := self.device_manager.get_supported_device(device["type"])) is None:
             logger.warning(f"{device['type']} not supported")
             return False
         if parameter not in class_obj.settable_parameters:
-            logger.warning(f"parameter {parameter} not supported")
+            logger.warning(f"Setting parameter {parameter} not supported")
             return False
         
         uuid_string = str(uuid)
