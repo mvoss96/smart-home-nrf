@@ -15,6 +15,14 @@ int pins[] = {PIN_OUTPUT_R, PIN_OUTPUT_G, PIN_OUTPUT_B};
 unsigned int outputPowerLimit = OUTPUT_POWER_LIMIT;
 uint8_t statusInterval = STATUS_INTERVAL_TIME;
 
+void disableOutput()
+{
+    for (auto pin : pins)
+    {
+        digitalWrite(pin, LOW);
+    }
+}
+
 // Function to update LED outputs based on the current status
 void setOutput()
 {
@@ -29,6 +37,7 @@ void setOutput()
     if (channelTotal == 0)
     {
         Serial.println("channelTotal is 0!");
+        disableOutput();
         return;
     }
 
@@ -45,7 +54,7 @@ void setOutput()
         // If power is off, set output to LOW
         if (!status.power)
         {
-            digitalWrite(pins[i], LOW);
+            disableOutput();
         }
         // Else, set output according to brightness, color and power limit
         else if (channels[i]) // make sure pointer isn't NULL before dereferencing
@@ -259,5 +268,4 @@ void setStatus(const uint8_t *data, uint8_t length)
         Serial.println("ERROR: Unsupported changeType!");
     }
     }
-    setOutput();
 }

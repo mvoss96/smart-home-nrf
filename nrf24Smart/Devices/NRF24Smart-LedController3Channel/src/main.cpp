@@ -35,6 +35,9 @@ void setPinModes()
   pinMode(PIN_OUTPUT_R, OUTPUT);
   pinMode(PIN_OUTPUT_G, OUTPUT);
   pinMode(PIN_OUTPUT_B, OUTPUT);
+  digitalWrite(PIN_OUTPUT_R, LOW);
+  digitalWrite(PIN_OUTPUT_G, LOW);
+  digitalWrite(PIN_OUTPUT_B, LOW);
   pinMode(PIN_BTN1, INPUT_PULLUP);
 
   // Enable interrupt on PIN_BTN1
@@ -56,7 +59,6 @@ void setup()
   connectToServer();
   printEEPROM(5);
   delay(1000);
-  setOutput();
 }
 
 void loop()
@@ -75,4 +77,5 @@ void loop()
     connectToServer();
   }
   listenForPackets();
+  setOutput();
 }

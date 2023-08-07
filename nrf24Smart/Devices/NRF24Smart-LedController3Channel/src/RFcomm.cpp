@@ -14,14 +14,23 @@ uint8_t ClientPacket::msgNum = 0;
 // Send fucntion with LED blink
 uint8_t nrfSend(uint8_t toRadioId, void *data, uint8_t length, NRFLite::SendType sendType = NRFLite::REQUIRE_ACK)
 {
-    if (LED_BLINK_ONMESSAGE)
+    uint8_t res = 0;
+    for (int i = 0; i < 2; i++)
     {
-        digitalWrite(PIN_LED1, LOW);
-    }
-    uint8_t res = _radio.send(SERVER_RADIO_ID, data, length, sendType);
-    if (LED_BLINK_ONMESSAGE)
-    {
-        digitalWrite(PIN_LED1, HIGH);
+        if (LED_BLINK_ONMESSAGE)
+        {
+            digitalWrite(PIN_LED1, LOW);
+        }
+        res = _radio.send(SERVER_RADIO_ID, data, length, sendType);
+        if (LED_BLINK_ONMESSAGE)
+        {
+            digitalWrite(PIN_LED1, HIGH);
+        }
+        if (res == 1){
+            break;
+        }
+        Serial.print("Retrying send... ");
+        delay(200);
     }
     return res;
 }
@@ -176,7 +185,7 @@ void sendStatus()
         Serial.print(" <- Send status message with length ");
         Serial.print(pck.getSize());
         pck.printData();
-        //pck.print();
+        // pck.print();
         if (nrfSend(SERVER_RADIO_ID, &pck, pck.getSize()))
         {
             Serial.println(" Success!");
