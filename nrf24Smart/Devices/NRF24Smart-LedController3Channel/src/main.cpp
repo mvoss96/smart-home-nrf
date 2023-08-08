@@ -12,6 +12,22 @@ ISR(PCINT1_vect)
   btnPressed = !digitalRead(PIN_BTN1);
 }
 
+void printGreetingMessage()
+{
+  static const uint8_t uuid[] = DEVICE_UUID;
+  Serial.print(DEVICE_TYPE);
+  Serial.print(" [");
+  for (size_t i = 0; i < 4; i++)
+  {
+    Serial.print(uuid[i], HEX);
+    if (i < 3)
+    {
+      Serial.print(" ");
+    }
+  }
+  Serial.println("] ");
+}
+
 void setPinModes()
 {
   pinMode(PIN_LED1, OUTPUT);
@@ -19,6 +35,9 @@ void setPinModes()
   pinMode(PIN_OUTPUT_R, OUTPUT);
   pinMode(PIN_OUTPUT_G, OUTPUT);
   pinMode(PIN_OUTPUT_B, OUTPUT);
+  digitalWrite(PIN_OUTPUT_R, LOW);
+  digitalWrite(PIN_OUTPUT_G, LOW);
+  digitalWrite(PIN_OUTPUT_B, LOW);
   pinMode(PIN_BTN1, INPUT_PULLUP);
 
   // Enable interrupt on PIN_BTN1
@@ -28,8 +47,9 @@ void setPinModes()
 
 void setup()
 {
+
   Serial.begin(115200);
-  Serial.println(DEVICE_TYPE);
+  printGreetingMessage();
   // Serial.println(readVcc());
   // Serial.println(batteryLevel());
   setPinModes();
@@ -39,7 +59,6 @@ void setup()
   connectToServer();
   printEEPROM(5);
   delay(1000);
-  setOutput();
 }
 
 void loop()
@@ -58,4 +77,5 @@ void loop()
     connectToServer();
   }
   listenForPackets();
+  setOutput();
 }
