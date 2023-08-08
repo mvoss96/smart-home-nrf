@@ -91,6 +91,7 @@ class DeviceManager:
                 "battery_level": 255,
                 "type": device_type,
                 "name": device_type,
+                "status_interval": msg.STATUS_INTERVAL,
                 "last_seen": time.strftime("%Y-%m-%d %H:%M:%S"),
             }
         )

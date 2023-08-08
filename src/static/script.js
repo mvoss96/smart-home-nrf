@@ -52,6 +52,7 @@ async function fetchAndPopulate() {
 
 
 function populateTable(device, table) {
+    console.log(device)
     let row = table.insertRow();
     row.insertCell().innerHTML = `<span id="deviceName_${device.uuid}" class="device-name">
                 ID:${device.id}<br>${device.name}<br><span class="small-font">(${device.type})</span>
@@ -59,6 +60,9 @@ function populateTable(device, table) {
                 <button onclick="removeDevice('${device.uuid}')">Remove</button>`;
 
     let statusList = document.createElement('ul');
+    let intervalElement = document.createElement('li');
+    intervalElement.textContent = "status_interval: " + device.status_interval + "s";
+    statusList.appendChild(intervalElement);
     for (let prop in device.status) {
         let listItem = document.createElement('li');
         if (prop === "power") { listItem.textContent = `power: ${device.status["power"] ? "on" : "Off"}`; }
@@ -67,6 +71,7 @@ function populateTable(device, table) {
     }
     let statusCell = row.insertCell();
     statusCell.appendChild(statusList);
+    row.insertCell().textContent = device.connection_health ? device.connection_health*100 + '%' : 'N/A';
     row.insertCell().textContent = device.battery_powered ? Math.round(device.battery_level / 2.55) + '%' : 'N/A';
     row.insertCell().textContent = device.uuid.join(':');
     row.insertCell().textContent = device.version;

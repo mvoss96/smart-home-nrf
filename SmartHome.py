@@ -37,6 +37,7 @@ class SmartHome:
         thread = threading.Thread(target=wrapper, name=target.__name__)
         thread.start()
 
+
     def start(self):
         self.start_thread_and_catch_exceptions(self.webserver_manager.run)
         time.sleep(1) # Wait for server
