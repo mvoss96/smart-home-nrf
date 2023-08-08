@@ -2,14 +2,13 @@
 #include <NRFLite.h>
 #include <EEPROM.h>
 #include "RFcomm.h"
-#include "blink.h"
 #include "control.h"
+#include "blink.h"
 
 uint8_t radioID = INITIAL_RADIO_ID;
 uint8_t serverUUID[4];
 bool serverConnected = false;
 NRFLite _radio;
-
 uint8_t ClientPacket::msgNum = 0;
 
 // Send fucntion with LED blink
@@ -163,7 +162,7 @@ void connectToServer()
                 }
                 if (millis() - startTime > 2000)
                 {
-                    Serial.println(" Timeout while waiting for answer from Server!");
+                    Serial.println(" Timeout while waiting for Answer from Server!");
                     break;
                 }
                 delay(500);
@@ -247,13 +246,13 @@ void listenForPackets()
             resetEEPROM();
             delay(1000);
             break;
-        case MSG_TYPES::SET:
-            Serial.print("-> SET message received ");
-            pck.printData();
-            Serial.println();
-            setStatus(pck.getDATA(), pck.getSize());
-            sendStatus();
-            break;
+        // case MSG_TYPES::SET:
+        //     Serial.print("-> SET message received ");
+        //     pck.printData();
+        //     Serial.println();
+        //     setStatus(pck.getDATA(), pck.getSize());
+        //     sendStatus();
+        //     break;
         default:
             Serial.println("-> Unsupported message received!");
         }

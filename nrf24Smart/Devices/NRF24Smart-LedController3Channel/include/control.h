@@ -14,7 +14,6 @@ struct Status{
 };
 
 extern Status status;
-extern uint8_t statusInterval;
 
 void setStatus(const uint8_t* data, uint8_t length);
 void setOutput();

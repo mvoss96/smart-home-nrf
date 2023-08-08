@@ -3,7 +3,8 @@
 #include <NRFLite.h>
 #include "config.h"
 #include "power.h"
-#include "control.h"
+
+
 
 enum class MSG_TYPES : uint8_t
 {
@@ -15,6 +16,7 @@ enum class MSG_TYPES : uint8_t
     STATUS,
 };
 
+extern uint8_t statusInterval;
 
 
 // Must be max 32 bytes

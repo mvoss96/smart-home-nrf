@@ -1,9 +1,10 @@
-#include "config.h"
-#include "power.h"
+#pragma once
+#include <Arduino.h>
 
+#ifdef __AVR__
 
 // Function to read the supply voltage using the internal 1.1V reference
-long readVcc()
+inline long readVcc()
 {
   long result; // Variable to hold the result
 
@@ -37,16 +38,17 @@ long readVcc()
   return result;
 }
 
-
 // Function to map the battery voltage to a battery level (1 to 255)
-uint8_t batteryLevel() {
+inline uint8_t batteryLevel()
+{
   // Ensure that the voltage is within the range from emptyVoltage to fullVoltage
   long voltage = constrain(readVcc(), DEVICE_BATTERY_EMPTY_VOLTAGE, DEVICE_BATTERY_FULL_VOLTAGE);
 
   // Map the constrained voltage to the range from 1 to 255
-  uint8_t level = map(voltage, DEVICE_BATTERY_EMPTY_VOLTAGE,  DEVICE_BATTERY_FULL_VOLTAGE, 1, 255);
+  uint8_t level = map(voltage, DEVICE_BATTERY_EMPTY_VOLTAGE, DEVICE_BATTERY_FULL_VOLTAGE, 1, 255);
 
   // Return the battery level
   return level;
 }
 
+#endif
