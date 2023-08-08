@@ -59,7 +59,8 @@ void setOutput()
         // Else, set output according to brightness, color and power limit
         else if (channels[i]) // make sure pointer isn't NULL before dereferencing
         {
-            analogWrite(pins[i], *channels[i] * status.powerScale * (float)status.brightness / 255);
+            uint8_t value = *channels[i] * status.powerScale * (float)status.brightness / 255;
+            analogWrite(pins[i], value);
         }
     }
 }
@@ -268,4 +269,5 @@ void setStatus(const uint8_t *data, uint8_t length)
         Serial.println("ERROR: Unsupported changeType!");
     }
     }
+    setOutput();
 }

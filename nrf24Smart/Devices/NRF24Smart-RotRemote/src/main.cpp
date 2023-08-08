@@ -2,6 +2,7 @@
 #include "RFcomm.h"
 #include "power.h"
 #include "util.h"
+#include "control.h"
 
 void (*resetFunc)(void) = 0;
 volatile bool btnPressed = false;
@@ -31,20 +32,29 @@ void setup()
 {
   Serial.begin(115200);
   printGreetingMessage();
-  Serial.print("VCC: ");
-  Serial.print(readVcc());
-  Serial.println("mV");
+  printPowerStatus();
+
   setPinModes();
   delay(500);
   digitalWrite(PIN_LED1, HIGH);
   digitalWrite(PIN_LED2, HIGH);
   connectToServer();
+  sendStatus();
   printEEPROM(5);
-  delay(1000);
+  setupEncoder();
+  delay(500);
+
+  // pin change interrupt (example for D4)
+  noInterrupts();
+  PCMSK2 |= bit(PCINT20);  // want pin 4
+  PCIFR |= bit(PCIF2);     // clear any outstanding interrupts
+  PCICR |= bit(PCIE2);     // enable pin change interrupts for D0 to D7
+  interrupts();
 }
 
 void loop()
 {
+  checkForSleep();
   // Check for reset button
   if (btnPressed)
   {
@@ -58,5 +68,7 @@ void loop()
     Serial.println("Connecting to Server:");
     connectToServer();
   }
+
   listenForPackets();
+  readEncoder();
 }

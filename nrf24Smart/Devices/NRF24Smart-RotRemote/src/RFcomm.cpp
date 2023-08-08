@@ -15,22 +15,14 @@ uint8_t ClientPacket::msgNum = 0;
 uint8_t nrfSend(uint8_t toRadioId, void *data, uint8_t length, NRFLite::SendType sendType = NRFLite::REQUIRE_ACK)
 {
     uint8_t res = 0;
-    for (int i = 0; i < 2; i++)
+    if (LED_BLINK_ONMESSAGE)
     {
-        if (LED_BLINK_ONMESSAGE)
-        {
-            digitalWrite(PIN_LED1, LOW);
-        }
-        res = _radio.send(SERVER_RADIO_ID, data, length, sendType);
-        if (LED_BLINK_ONMESSAGE)
-        {
-            digitalWrite(PIN_LED1, HIGH);
-        }
-        if (res == 1){
-            break;
-        }
-        Serial.print("Retrying send... ");
-        delay(200);
+        digitalWrite(PIN_LED1, LOW);
+    }
+    res = _radio.send(SERVER_RADIO_ID, data, length, sendType);
+    if (LED_BLINK_ONMESSAGE)
+    {
+        digitalWrite(PIN_LED1, HIGH);
     }
     return res;
 }
@@ -176,6 +168,30 @@ void connectToServer()
     nrfSend(SERVER_RADIO_ID, &bootpck, bootpck.getSize());
 }
 
+void sendRemote(LAYERS layer, uint8_t value)
+{
+    if (status.targetID == 0){
+        Serial.println("Missing targetID");
+        return;
+    }
+    RemotePacket pck(radioID, status.targetUUID, layer, value);
+    Serial.print(millis());
+    Serial.print(" <- Send remote message to ");
+    Serial.print(status.targetID);
+    Serial.print(" with length ");
+    Serial.print(pck.getSize());
+    pck.printData();
+    pck.print();
+    if (nrfSend(status.targetID, &pck, pck.getSize()))
+    {
+        Serial.println(" Success!");
+    }
+    else
+    {
+        Serial.println(" Failed!");
+    }
+}
+
 void sendStatus()
 {
     ClientPacket pck(radioID, MSG_TYPES::STATUS, (uint8_t *)&status, sizeof(status));
@@ -215,7 +231,6 @@ bool checkUUID(ServerPacket pck)
 
 void listenForPackets()
 {
-    static unsigned long statusTimer = 0;
     // Listen for new Messages
     uint8_t packetSize = _radio.hasData();
     uint8_t buf[32] = {0};
@@ -260,11 +275,5 @@ void listenForPackets()
         {
             digitalWrite(PIN_LED2, HIGH);
         }
-    }
-
-    if (millis() - statusTimer >= statusInterval * 1000)
-    {
-        sendStatus();
-        statusTimer = millis();
     }
 }

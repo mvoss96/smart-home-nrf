@@ -9,6 +9,7 @@ uint8_t radioID = INITIAL_RADIO_ID;
 uint8_t serverUUID[4];
 bool serverConnected = false;
 NRFLite _radio;
+unsigned long statusTimer = 0;
 
 uint8_t ClientPacket::msgNum = 0;
 
@@ -27,7 +28,8 @@ uint8_t nrfSend(uint8_t toRadioId, void *data, uint8_t length, NRFLite::SendType
         {
             digitalWrite(PIN_LED1, HIGH);
         }
-        if (res == 1){
+        if (res == 1)
+        {
             break;
         }
         Serial.print("Retrying send... ");
@@ -177,16 +179,16 @@ void connectToServer()
     nrfSend(SERVER_RADIO_ID, &bootpck, bootpck.getSize());
 }
 
-void sendStatus()
+void sendStatus(bool isAck)
 {
-    ClientPacket pck(radioID, MSG_TYPES::STATUS, (uint8_t *)&status, sizeof(status));
+    ClientPacket pck(radioID, (isAck) ? MSG_TYPES::OK : MSG_TYPES::STATUS, (uint8_t *)&status, sizeof(status));
     if (pck.getInitialized())
     {
         Serial.print(millis());
         Serial.print(" <- Send status message with length ");
         Serial.print(pck.getSize());
-        pck.printData();
-        // pck.print();
+        // pck.printData();
+        pck.print();
         if (nrfSend(SERVER_RADIO_ID, &pck, pck.getSize()))
         {
             Serial.println(" Success!");
@@ -200,6 +202,12 @@ void sendStatus()
     {
         Serial.println("ERROR: ClientPacket not initialized!");
     }
+    statusTimer = millis();
+}
+
+void sendStatus()
+{
+    sendStatus(false);
 }
 
 bool checkUUID(ServerPacket pck)
@@ -216,7 +224,6 @@ bool checkUUID(ServerPacket pck)
 
 void listenForPackets()
 {
-    static unsigned long statusTimer = 0;
     // Listen for new Messages
     uint8_t packetSize = _radio.hasData();
     uint8_t buf[32] = {0};
@@ -252,7 +259,7 @@ void listenForPackets()
             pck.printData();
             Serial.println();
             setStatus(pck.getDATA(), pck.getSize());
-            sendStatus();
+            sendStatus(true);
             break;
         default:
             Serial.println("-> Unsupported message received!");
@@ -266,6 +273,5 @@ void listenForPackets()
     if (millis() - statusTimer >= statusInterval * 1000)
     {
         sendStatus();
-        statusTimer = millis();
     }
 }
