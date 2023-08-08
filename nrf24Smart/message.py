@@ -5,11 +5,9 @@ class MSG_TYPES(Enum):
     ERROR = 0
     INIT = 1
     BOOT = 2
-    OK = 3
-    SET = 4
-    GET = 5
-    RESET = 6
-    STATUS = 7
+    SET = 3
+    RESET = 4
+    STATUS = 5
 
 class CHANGE_TYPES(Enum):
    INVALID = 0
@@ -43,8 +41,8 @@ class SetMessage:
 class DeviceMessage:
     def __init__(self, raw_data) -> None:
         self.raw_data = raw_data
-        if len(self.raw_data) < 8:
-            print("DeviceMessage must be at least 8 bytes long")
+        if len(self.raw_data) < 12:
+            print("DeviceMessage must be at least 12 bytes long")
             self.is_valid = False
             return
         self.ID = self.raw_data[0]
@@ -52,15 +50,18 @@ class DeviceMessage:
         self.MSG_TYPE = self.raw_data[5]
         self.FIRMWARE_VERSION = self.raw_data[6]
         self.BATTERY = self.raw_data[7]
-        self.DATA = self.raw_data[8:-2]
+        self.STATUS_INTERVAL = self.raw_data[8]
+        self.MSG_NUM = self.raw_data[9]
+        self.DATA = self.raw_data[10:-2]
         self.CHECKSUM = (self.raw_data[-2] << 8) | self.raw_data[-1]  # MSB, LSB
         # Calculate the checksum from the data (excluding checksum bytes)
         self.is_valid = self.CHECKSUM == sum(self.raw_data[:-2])  
 
+
     def __str__(self) -> str:
         return (
             f"DeviceMessage ID:{self.ID} UUID:{':'.join(f'{byte:02X}' for byte in self.UUID)} TYPE: {MSG_TYPES(self.MSG_TYPE)} FW:{self.FIRMWARE_VERSION} "
-            + f"BATTERY:{self.BATTERY} DATA:{':'.join(f'{byte:02X}' for byte in self.DATA)} VALID:{self.is_valid}"
+            + f"BATTERY:{self.BATTERY} STATUS_INTERVAL:{self.STATUS_INTERVAL} DATA:{':'.join(f'{byte:02X}' for byte in self.DATA)} VALID:{self.is_valid}"
         )
 
 

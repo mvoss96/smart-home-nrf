@@ -170,7 +170,7 @@ class DBManager:
         """
         Change the name of a Device using the given UUID
         """
-        logger.info(f"Changing Name of Device with uuid {device_uuid} to {new_name}")
+        # logger.info(f"Changing Name of Device with uuid {device_uuid} to {new_name}")
         Q = Query()
         try:
             # Find the device with the given UUID
@@ -179,5 +179,19 @@ class DBManager:
                 device["name"] = new_name
                 self.update_device_in_db(device)
         except Exception as e:
-            logger.error(f"Unexpected error while renaming device in DB: {e}")
+            logger.error(f"Unexpected error for device in DB: {e}")
 
+    def update_connection_health(self, device_uuid: list[int], health: float):
+        """
+        Change the connection_health of a Device using the given UUID
+        """
+        # logger.info(f"Changing connection_health of Device with uuid {device_uuid} to {health}")
+        Q = Query()
+        try:
+            # Find the device with the given UUID
+            device = self.search_device_in_db(device_uuid)
+            if device:
+                device["connection_health"] = round(health, 2)
+                self.update_device_in_db(device)
+        except Exception as e:
+            logger.error(f"Unexpected error for device in DB: {e}")

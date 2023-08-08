@@ -33,6 +33,7 @@ class PacketReader:
         self.intermediate_buffer = deque()
         self.reset_buffer()
         self.lock = Lock()
+        self.packet_lock = Lock()
 
     def reset_buffer(self):
         """Resets the buffer and other related flags/counts for a new packet."""
@@ -105,15 +106,16 @@ class PacketReader:
 
         :return: The received packet's type and data as a tuple, or None if no packet is available.
         """
-        if self.port.in_waiting > 0:
-            byte_data = self.port.read_all()
-            #print(byte_data)
-            if byte_data is not None:
-                self.intermediate_buffer.extend(byte_data)
+        with self.packet_lock:
+            if self.port.in_waiting > 0:
+                byte_data = self.port.read_all()
+                #print(byte_data)
+                if byte_data is not None:
+                    self.intermediate_buffer.extend(byte_data)
 
-        while len(self.intermediate_buffer) > 0:
-            byte = self.intermediate_buffer.popleft()
-            pck = self.handle_byte(byte)
-            if pck is not None:
-                return pck
-        return None
+            while len(self.intermediate_buffer) > 0:
+                byte = self.intermediate_buffer.popleft()
+                pck = self.handle_byte(byte)
+                if pck is not None:
+                    return pck
+            return None
