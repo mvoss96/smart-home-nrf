@@ -29,18 +29,20 @@ class CommunicationManager:
         self.max_msg_num_length = 20
         self.msg_nums = {}
 
+        self.wait_for_status = set()
+
     def calc_missing(self, lst) -> int:
-            # Create a complete set from the smallest to the largest number in the list
-            complete_set = set(range(min(lst), max(lst) + 1))
+        # Create a complete set from the smallest to the largest number in the list
+        complete_set = set(range(min(lst), max(lst) + 1))
 
-            # Convert the original list to a set
-            lst_set = set(lst)
+        # Convert the original list to a set
+        lst_set = set(lst)
 
-            # Find the difference between the complete set and the original set
-            missing_set = complete_set - lst_set
+        # Find the difference between the complete set and the original set
+        missing_set = complete_set - lst_set
 
-            # Return the number of missing entries
-            return len(missing_set)
+        # Return the number of missing entries
+        return len(missing_set)
 
     def update_connection_health(self, uuid: list[int], msg_num: int):
         """
@@ -49,9 +51,9 @@ class CommunicationManager:
         # Return early if device not in db
         if self.db_manager.search_device_in_db(uuid) is None:
             return
-        
+
         uuid_string = str(uuid)
-       
+
         # Check if device_id is in msg_nums
         if uuid_string not in self.msg_nums:
             # If uuid_string is not in msg_nums, initialize it
@@ -111,6 +113,10 @@ class CommunicationManager:
         device["version"] = msg.FIRMWARE_VERSION
         device["status_interval"] = msg.STATUS_INTERVAL
 
+        if msg.MSG_TYPE == MSG_TYPES.OK.value and msg.ID in self.wait_for_status:
+            self.wait_for_status.remove(msg.ID)
+            #print("removed ID:", msg.ID)
+
         # Create an instance of the class
         try:
             instance = class_obj(msg.DATA)
@@ -154,7 +160,7 @@ class CommunicationManager:
                     self.handle_init_mesage(msg)
                 elif msg.MSG_TYPE == MSG_TYPES.BOOT.value:
                     self.handle_boot_message(msg)
-                elif msg.MSG_TYPE == MSG_TYPES.STATUS.value:
+                elif msg.MSG_TYPE in (MSG_TYPES.STATUS.value, MSG_TYPES.OK.value):
                     self.handle_status_message(msg)
                 else:
                     logger.info(f"-> {msg}")
@@ -168,44 +174,66 @@ class CommunicationManager:
         Send any pending status changes in set_status to the devices.
         """
         while not self.shutdown_flag.is_set():
+            keys_updated = []
             for device in self.db_manager.get_all_devices():
                 uuid = device["uuid"]
+                id = device["id"]
                 uuid_string = str(uuid)
+                keys_unsupported = set()
 
                 if (class_obj := self.device_manager.get_supported_device(device["type"])) == None:
                     logger.error(f"Database contains not supported device {device['type']}")
                     continue
 
                 if uuid_string in self.parameter_buffer and self.parameter_buffer[uuid_string] != {}:
-                    keys_updated = set()
                     dict_copy = dict(self.parameter_buffer[uuid_string])
 
                     for key, value in dict_copy.items():
                         if (set_message := class_obj.create_set_message(key, value)) == None:
                             logger.error(f"set_status contains not supported parameter {key}: {value}")
-                            keys_updated.add(key)
+                            keys_unsupported.add(key)
                             continue
 
                         msg = HostMessage(
                             uuid=self.db_manager.uuid, msg_type=MSG_TYPES.SET, data=set_message.get_raw()
                         )
                         logger.info(f"sending SET {key} {value} to device {uuid}")
-                        res = self.device_manager.send_msg_to_device(device["id"], msg.get_raw())
+                        res = self.device_manager.send_msg_to_device(id, msg.get_raw())
                         if res == None:
                             logger.error(
                                 f"Failed to send SET message to device:{device['type']} with uuid:{device['uuid']}!"
                             )
                         else:
-                            keys_updated.add(key)
+                            self.wait_for_status.add(id)
 
-                    for key in keys_updated:
+                            keys_updated.append((id, uuid_string, key, value))
+
+                    for key in keys_unsupported:
                         # Only remove if values have not changed:
                         if dict_copy.get(key) == self.parameter_buffer[uuid_string].get(key):
-                            # print(f"delete {dict_copy.get(key)} {self.parameter_buffer[uuid_string].get(key)}")
+                            print(
+                                f"Remove unsupported {dict_copy.get(key)} {self.parameter_buffer[uuid_string].get(key)}"
+                            )
                             del self.parameter_buffer[uuid_string][key]
                     self.db_manager.update_device_in_db(device)
 
-            time.sleep(0.1)
+            time.sleep(0.2)
+            for entry in keys_updated:
+                (id, uuid_string, key, value) = entry
+                device = self.db_manager.search_device_in_db_by_id(id)
+                # Only remove if values have not changed:
+                for i in range(3):
+                    if value == self.parameter_buffer[uuid_string].get(key):
+                        #print("wait for status from id", id)
+                        if id not in self.wait_for_status:
+                            # print(f"delete {key}")
+                            del self.parameter_buffer[uuid_string][key]
+                            self.db_manager.update_device_in_db(device)
+                            keys_updated.remove(entry)
+                            break
+                        time.sleep(0.1)
+                if entry in keys_updated:
+                    logger.warning(f"did not receive status update in time from device {uuid_string}")
 
         logger.info("Stopped update_all_devices")
 
