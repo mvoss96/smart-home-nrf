@@ -51,4 +51,13 @@ inline uint8_t batteryLevel()
   return level;
 }
 
+inline void printPowerStatus()
+{
+  Serial.print("VCC: ");
+  Serial.print(readVcc());
+  Serial.print("mV ");
+  Serial.print(round((batteryLevel() / 255.0) * 100));
+  Serial.println("%");
+}
+
 #endif

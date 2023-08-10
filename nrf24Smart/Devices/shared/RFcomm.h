@@ -4,8 +4,6 @@
 #include "config.h"
 #include "power.h"
 
-
-
 enum class MSG_TYPES : uint8_t
 {
     ERROR,
@@ -14,10 +12,11 @@ enum class MSG_TYPES : uint8_t
     SET,
     RESET,
     STATUS,
+    REMOTE,
+    OK,
 };
 
 extern uint8_t statusInterval;
-
 
 // Must be max 32 bytes
 class ClientPacket
@@ -152,7 +151,7 @@ public:
             Serial.print(DATA[i]);
             Serial.print(" ");
         }
-        Serial.println();
+        //Serial.println();
     }
 };
 
@@ -316,6 +315,117 @@ enum class ChangeTypes : uint8_t
     DECREASE,
 };
 
+enum class LAYERS : uint8_t
+{
+    BUTTONS,
+    AXIS1,
+    AXIS2,
+    AXIS3,
+    AXIS4,
+    AXIS5,
+    AXIS6,
+    AXIS7,
+    AXIS8,
+    AXIS9,
+};
+
+enum class AXIS_DIRS : uint8_t
+{
+    UP,
+    DOWN,
+};
+
+// Must be max 32 bytes
+class RemotePacket
+{
+private:
+    uint8_t ID;
+    uint8_t UUID[4] = DEVICE_UUID;
+    uint8_t MESSAGE_TYPE = (uint8_t)MSG_TYPES::REMOTE;
+    uint8_t TARGET_UUID[4];
+    uint8_t LAYER;
+    uint8_t VALUE;
+    uint8_t CHECKSUM[2];
+
+    void addChecksum()
+    {
+        // Calculate the checksum by summing all the bytes
+        uint16_t sum = 0;
+
+        sum += ID;
+        for (size_t i = 0; i < sizeof(UUID); i++)
+        {
+            sum += UUID[i];
+        }
+        for (size_t i = 0; i < sizeof(TARGET_UUID); i++)
+        {
+            sum += TARGET_UUID[i];
+        }
+        sum += LAYER;
+        sum += VALUE;
+
+        // Store the checksum
+        CHECKSUM[0] = (sum >> 8) & 0xFF; // MSB
+        CHECKSUM[1] = sum & 0xFF;        // LSB
+    }
+
+public:
+    RemotePacket(uint8_t id, uint8_t *targetUUID, LAYERS layer, uint8_t value)
+    {
+        ID = id;
+        memcpy(TARGET_UUID, targetUUID, 4);
+        LAYER = (uint8_t)layer;
+        VALUE = value;
+        addChecksum();
+    }
+
+    size_t getSize()
+    {
+        return (sizeof(*this));
+    }
+
+    void printData()
+    {
+        Serial.print(": [");
+        size_t s = getSize();
+        for (size_t i = 0; i < s; i++)
+        {
+            Serial.print((int)(((uint8_t *)this)[i]), HEX);
+            if (i < s - 1)
+            {
+                Serial.print(" ");
+            }
+        }
+        Serial.print("] ");
+    }
+
+    void print()
+    {
+        Serial.print("RemotePacket: ");
+        Serial.print("ID: ");
+        Serial.print(ID);
+        Serial.print(" ");
+        Serial.print("UUID: ");
+        for (size_t i = 0; i < sizeof(UUID); i++)
+        {
+            Serial.print(UUID[i]);
+            Serial.print(" ");
+        }
+        Serial.print("TARGET_UUID: ");
+        for (size_t i = 0; i < sizeof(UUID); i++)
+        {
+            Serial.print(TARGET_UUID[i]);
+            Serial.print(" ");
+        }
+        Serial.print("LAYER: ");
+        Serial.print(LAYER);
+        Serial.print(" ");
+        Serial.print("VALUE: ");
+        Serial.print(VALUE);
+        Serial.println();
+    }
+};
+
 struct SetMessage
 {
     uint8_t varIndex = 0;
@@ -361,3 +471,5 @@ void printEEPROM(int n = 0);
 void radioInit();
 void connectToServer();
 void listenForPackets();
+void sendStatus();
+void sendRemote(LAYERS layer, uint8_t value);

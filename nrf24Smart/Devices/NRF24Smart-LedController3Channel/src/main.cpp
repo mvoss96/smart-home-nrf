@@ -49,6 +49,7 @@ void setup()
 {
 
   Serial.begin(115200);
+  //TCCR0B = TCCR0B & B11111000 | B00000001;
   printGreetingMessage();
   // Serial.println(readVcc());
   // Serial.println(batteryLevel());
@@ -78,4 +79,5 @@ void loop()
   }
   listenForPackets();
   setOutput();
+  delay(1);
 }

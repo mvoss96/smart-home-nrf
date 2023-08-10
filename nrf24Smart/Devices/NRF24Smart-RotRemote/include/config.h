@@ -17,13 +17,16 @@
 #define SERVER_RADIO_ID                                 0
 #define PIN_RADIO_CE                                    9
 #define PIN_RADIO_CSN                                   10
-#define PIN_LED1                                        8
-#define PIN_LED2                                        7
+#define PIN_LED1                                        A1
+#define PIN_LED2                                        A0
 
 #define PIN_ROTARY1                                     3
 #define PIN_ROTARY2                                     2
 #define PIN_BTN_ENC                                     4
 #define PIN_BTN_RST                                     A4
-#define DEBOUNCE_MS                                     25
+#define DEBOUNCE_MS                                     40
 #define LONG_PRESS_MS                                   300
 #define DOUBLE_CLICK_MS                                 200
+#define SLEEP_AFTER_MS                                  1000
+#define CLICKS_PER_STEP                                 4
+
