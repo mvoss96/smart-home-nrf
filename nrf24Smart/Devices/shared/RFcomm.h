@@ -151,7 +151,7 @@ public:
             Serial.print(DATA[i]);
             Serial.print(" ");
         }
-        //Serial.println();
+        // Serial.println();
     }
 };
 
@@ -471,5 +471,10 @@ void printEEPROM(int n = 0);
 void radioInit();
 void connectToServer();
 void listenForPackets();
-void sendStatus();
+void sendStatus(bool isAck);
+void connectToServer();
+inline void sendStatus()
+{
+    sendStatus(false);
+}
 void sendRemote(LAYERS layer, uint8_t value);

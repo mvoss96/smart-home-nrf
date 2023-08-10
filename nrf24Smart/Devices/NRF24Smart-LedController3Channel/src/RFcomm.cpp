@@ -205,11 +205,6 @@ void sendStatus(bool isAck)
     statusTimer = millis();
 }
 
-void sendStatus()
-{
-    sendStatus(false);
-}
-
 bool checkUUID(ServerPacket pck)
 {
     for (size_t i = 0; i < sizeof(serverUUID) / sizeof(serverUUID[0]); i++)

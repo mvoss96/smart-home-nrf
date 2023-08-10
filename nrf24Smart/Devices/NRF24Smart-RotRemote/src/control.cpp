@@ -159,18 +159,19 @@ void checkForSleep()
     if (sleeping)
     {
         Serial.println("woken up!");
+        radioInit();
         sleeping = false;
     }
     if (millis() - globalTimer > SLEEP_AFTER_MS)
     {
         sleeping = true;
-        delay(500); // wait for voltage to stabilize
+        delay(100); // wait for voltage to stabilize
         printPowerStatus();
         sendStatus();
         Serial.println("sleep");
         Serial.println("Disable Radio");
         _radio.powerDown();
-        delay(100);
+        digitalWrite(PIN_RADIO_POWER, LOW);
         LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
         globalTimer = millis();
     }

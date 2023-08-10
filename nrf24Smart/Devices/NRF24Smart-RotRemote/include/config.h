@@ -15,6 +15,7 @@
 #define RADIO_CHANNEL                                   101
 #define INITIAL_RADIO_ID                                255
 #define SERVER_RADIO_ID                                 0
+#define PIN_RADIO_POWER                                 A2
 #define PIN_RADIO_CE                                    9
 #define PIN_RADIO_CSN                                   10
 #define PIN_LED1                                        A1

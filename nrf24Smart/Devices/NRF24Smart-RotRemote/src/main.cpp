@@ -21,7 +21,7 @@ void setPinModes()
   pinMode(PIN_BTN_ENC, INPUT_PULLUP);
   pinMode(PIN_ROTARY1, INPUT_PULLUP);
   pinMode(PIN_ROTARY2, INPUT_PULLUP);
-  pinMode(PIN_RADIO_CE, OUTPUT);
+  pinMode(PIN_RADIO_POWER, OUTPUT);
 
   // Enable interrupt on PIN_BTN1
   PCICR |= (1 << PCIE1);   // Aktivate Interrupts on Port C (analog)
