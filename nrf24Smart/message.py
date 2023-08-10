@@ -8,6 +8,8 @@ class MSG_TYPES(Enum):
     SET = 3
     RESET = 4
     STATUS = 5
+    REMOTE = 6
+    OK = 7
 
 class CHANGE_TYPES(Enum):
    INVALID = 0

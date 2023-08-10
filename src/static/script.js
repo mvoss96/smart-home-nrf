@@ -61,7 +61,7 @@ function populateTable(device, table) {
 
     let statusList = document.createElement('ul');
     let intervalElement = document.createElement('li');
-    intervalElement.textContent = "status_interval: " + device.status_interval + "s";
+    intervalElement.textContent = "status_interval: " +  (device.status_interval > 0 ? (device.status_interval + "s")  : "N/A");
     statusList.appendChild(intervalElement);
     for (let prop in device.status) {
         let listItem = document.createElement('li');
