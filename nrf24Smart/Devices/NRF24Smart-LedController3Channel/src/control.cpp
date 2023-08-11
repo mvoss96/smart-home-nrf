@@ -95,7 +95,7 @@ void increaseBrightness(uint8_t val)
 // Function to decrease brightness, taking care not to go below 0
 void decreaseBrightness(uint8_t val)
 {
-    status.brightness = max(1, status.brightness - val);
+    status.brightness = max(8, status.brightness - val);
 }
 
 // Function to set a specific color channel to a given value
@@ -270,4 +270,35 @@ void setStatus(const uint8_t *data, uint8_t length)
     }
     }
     setOutput();
+}
+
+void setRemote(const uint8_t layer, const uint8_t value)
+{
+    if (layer == (uint8_t)LAYERS::BUTTONS)
+    {
+        switch (value)
+        {
+        case 0:
+            setPower(!status.power);
+            break;
+        default:
+            Serial.print("Unsupported Remote Buton: ");
+            Serial.println(value);
+        }
+    }
+    else if (layer == (uint8_t)LAYERS::AXIS1)
+    {
+        if (value == (uint8_t)AXIS_DIRS::UP)
+        {
+            increaseBrightness(16);
+        }
+        else if (value == (uint8_t)AXIS_DIRS::DOWN)
+        {
+            decreaseBrightness(16);
+        }
+        else {
+            Serial.print("Unsupported AXIS1 Direction: ");
+            Serial.println(value);
+        }
+    }
 }

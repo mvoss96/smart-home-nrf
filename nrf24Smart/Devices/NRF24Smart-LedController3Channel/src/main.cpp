@@ -47,12 +47,10 @@ void setPinModes()
 
 void setup()
 {
-
   Serial.begin(115200);
-  //TCCR0B = TCCR0B & B11111000 | B00000001;
-  printGreetingMessage();
-  // Serial.println(readVcc());
-  // Serial.println(batteryLevel());
+  //printGreetingMessage();
+  Serial.println(readVcc());
+  Serial.println(batteryLevel());
   setPinModes();
   delay(500);
   digitalWrite(PIN_LED1, HIGH);
@@ -79,5 +77,4 @@ void loop()
   }
   listenForPackets();
   setOutput();
-  delay(1);
 }
