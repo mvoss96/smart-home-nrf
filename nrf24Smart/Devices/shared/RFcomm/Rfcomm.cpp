@@ -1,9 +1,8 @@
-#include <SPI.h>
-#include <NRFLite.h>
-#include <EEPROM.h>
 #include "RFcomm.h"
+#include "config.h"
+#include "status.h"
 #include "blink.h"
-#include "control.h"
+#include <EEPROM.h>
 
 uint8_t radioID = INITIAL_RADIO_ID;
 uint8_t serverUUID[4];
@@ -13,17 +12,40 @@ unsigned long statusTimer = 0;
 
 uint8_t ClientPacket::msgNum = 0;
 
+void setStatus(const uint8_t *data, uint8_t length);
+
+void radioInit()
+{
+#ifdef PIN_RADIO_POWER
+    digitalWrite(PIN_RADIO_POWER, HIGH);
+#endif
+    Serial.print("Initialize Radio with ID:");
+    Serial.println(radioID);
+    if (!_radio.init(radioID, PIN_RADIO_CE, PIN_RADIO_CSN, NRFLite::BITRATE250KBPS, RADIO_CHANNEL))
+    {
+        while (1)
+        {
+            Serial.println("Can't communicate with radio");
+#ifdef PIN_RADIO_POWER
+            digitalWrite(PIN_RADIO_POWER, LOW);
+#endif
+            delay(1000);
+        }
+    }
+    digitalWrite(PIN_RADIO_CE, LOW);
+}
+
 // Send fucntion with LED blink
 uint8_t nrfSend(uint8_t toRadioId, void *data, uint8_t length, NRFLite::SendType sendType = NRFLite::REQUIRE_ACK)
 {
     uint8_t res = 0;
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < NUM_SEND_RETRIES; i++)
     {
         if (LED_BLINK_ONMESSAGE)
         {
             digitalWrite(PIN_LED1, LOW);
         }
-        res = _radio.send(SERVER_RADIO_ID, data, length, sendType);
+        res = _radio.send(toRadioId, data, length, sendType);
         if (LED_BLINK_ONMESSAGE)
         {
             digitalWrite(PIN_LED1, HIGH);
@@ -38,46 +60,65 @@ uint8_t nrfSend(uint8_t toRadioId, void *data, uint8_t length, NRFLite::SendType
     return res;
 }
 
-void resetEEPROM()
+void sendStatus(bool isAck)
 {
-    Serial.println("Reset EEPROM...");
-    blinkBoth(6, 200);
-    for (size_t i = 0; i < EEPROM.length(); i++)
+    ClientPacket pck(radioID, (isAck) ? MSG_TYPES::OK : MSG_TYPES::STATUS, (uint8_t *)&status, sizeof(status));
+    if (pck.getInitialized())
     {
-        EEPROM.update(i, INITIAL_RADIO_ID);
+        Serial.print(millis());
+        Serial.print(" <- Send status message with length ");
+        Serial.print(pck.getSize());
+        Serial.print(" ");
+        // pck.printData();
+        pck.print();
+        if (nrfSend(SERVER_RADIO_ID, &pck, pck.getSize()))
+        {
+            Serial.println(" Success!");
+        }
+        else
+        {
+            Serial.println(" Failed!");
+        }
     }
+    else
+    {
+        Serial.println("ERROR: ClientPacket not initialized!");
+    }
+    statusTimer = millis();
+}
+
+#ifdef IS_RF_REMOTE
+void sendRemote(LAYERS layer, uint8_t value)
+{
+    if (status.targetID == 0)
+    {
+        Serial.println("Missing targetID");
+        return;
+    }
+    RemotePacket pck(radioID, status.targetUUID, layer, value);
+    Serial.print(millis());
+    Serial.print(" <- Send remote message to ");
+    Serial.print(status.targetID);
+    Serial.print(" with length ");
+    Serial.print(pck.getSize());
+    Serial.print(" ");
+    pck.printData();
+    pck.print();
+    if (nrfSend(status.targetID, &pck, pck.getSize()))
+    {
+        Serial.println(" Success!");
+    }
+    else
+    {
+        Serial.println(" Failed!");
+    }
+}
+#endif
+
+void connectToServer()
+{
+    // Check if Server was already set up
     serverConnected = false;
-    radioID = INITIAL_RADIO_ID;
-    serverUUID[0] = 0;
-    serverUUID[1] = 0;
-    serverUUID[2] = 0;
-    serverUUID[3] = 0;
-}
-
-void printEEPROM(int n)
-{
-    if (n <= 0)
-    {
-        n = EEPROM.length();
-    }
-    for (int i = 0; i < n; i++)
-    {
-        uint8_t val = EEPROM.read(i);
-        Serial.print("Address: ");
-        Serial.print(i);
-        Serial.print(" Value: ");
-        if (val < 16)
-            Serial.print('0');
-        Serial.print(val, HEX);
-        Serial.print(" (");
-        Serial.print(val);
-        Serial.println(")");
-    }
-}
-
-void loadFromEEPROM()
-{
-    // Check if Server was already set up and new ID saved
     radioID = EEPROM.read(0);
     if (radioID != INITIAL_RADIO_ID)
     {
@@ -85,41 +126,10 @@ void loadFromEEPROM()
         serverUUID[1] = EEPROM.read(2);
         serverUUID[2] = EEPROM.read(3);
         serverUUID[3] = EEPROM.read(4);
+        // 5 and 6 reserved
         serverConnected = true;
-        return;
     }
-    serverConnected = false;
-}
 
-void saveToEEPROM()
-{
-    blinkBoth(2, 200);
-    EEPROM.update(0, radioID);
-    EEPROM.update(1, serverUUID[0]);
-    EEPROM.update(2, serverUUID[1]);
-    EEPROM.update(3, serverUUID[2]);
-    EEPROM.update(4, serverUUID[3]);
-}
-
-void radioInit()
-{
-    Serial.print("Initialize Radio with ID:");
-    Serial.println(radioID);
-    if (!_radio.init(radioID, PIN_RADIO_CE, PIN_RADIO_CSN, NRFLite::BITRATE250KBPS, RADIO_CHANNEL))
-    {
-        while (1)
-        {
-            Serial.println("Can't communicate with radio");
-            delay(1000);
-        }
-    }
-}
-
-void connectToServer()
-{
-    // Check if Server was already set up
-    serverConnected = false;
-    loadFromEEPROM();
     if (!serverConnected)
     {
         radioInit();
@@ -179,37 +189,6 @@ void connectToServer()
     nrfSend(SERVER_RADIO_ID, &bootpck, bootpck.getSize());
 }
 
-void sendStatus(bool isAck)
-{
-    ClientPacket pck(radioID, (isAck) ? MSG_TYPES::OK : MSG_TYPES::STATUS, (uint8_t *)&status, sizeof(status));
-    if (pck.getInitialized())
-    {
-        Serial.print(millis());
-        Serial.print(" <- Send status message with length ");
-        Serial.print(pck.getSize());
-        // pck.printData();
-        pck.print();
-        if (nrfSend(SERVER_RADIO_ID, &pck, pck.getSize()))
-        {
-            Serial.println(" Success!");
-        }
-        else
-        {
-            Serial.println(" Failed!");
-        }
-    }
-    else
-    {
-        Serial.println("ERROR: ClientPacket not initialized!");
-    }
-    statusTimer = millis();
-}
-
-void sendStatus()
-{
-    sendStatus(false);
-}
-
 bool checkUUID(ServerPacket pck)
 {
     for (size_t i = 0; i < sizeof(serverUUID) / sizeof(serverUUID[0]); i++)
@@ -230,6 +209,26 @@ void listenForPackets()
     if (packetSize > 0)
     {
         _radio.readData(&buf);
+
+#ifdef ALLOW_REMOTE
+        if (buf[5] == (uint8_t)MSG_TYPES::REMOTE)
+        {
+
+            FromRemotePacket rPck(buf, packetSize);
+            if (!rPck.isValid())
+            {
+                Serial.println("WARNING: Invalid RemotePacket received!");
+                return;
+            }
+
+            Serial.print("-> REMOTE message received ");
+            rPck.print();
+            Serial.println();
+            setRemote(rPck.LAYER, rPck.VALUE);
+            return;
+        }
+#endif
+
         ServerPacket pck(buf, packetSize);
         if (!pck.isValid())
         {
@@ -270,7 +269,7 @@ void listenForPackets()
         }
     }
 
-    if (millis() - statusTimer >= statusInterval * 1000)
+    if (statusInterval != 0 && millis() - statusTimer >= statusInterval * 1000)
     {
         sendStatus();
     }

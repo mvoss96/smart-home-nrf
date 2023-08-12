@@ -1,15 +1,20 @@
 #pragma once
 
-#define DEVICE_TYPE                                     "LedController3Channel"     // Max 32 characters long
+#define ALLOW_REMOTE                                                                // Allow Remote Control
+
+#define DEVICE_TYPE                                     "LedController3Ch"          // Max 20 characters long
+#define MIN_BRIGHTNESS                                  8
+#define CONTROL_STEPS                                   16
 #define NUM_LED_CHANNELS                                2                           // How many LED channels
 #define DEVICE_BATTERY_POWERED                          0                           // 0 for stationary, 1 for Battery
 #define DEVICE_BATTERY_FULL_VOLTAGE                     3000                        // In mV
 #define DEVICE_BATTERY_EMPTY_VOLTAGE                    1800                        // In mV
 #define VREFINT                                         1113                        // In mV must be calibrated
-#define DEVICE_UUID                                     {0xB8, 0x66, 0xA2, 0xD4}    // Unique 4 byte UUID
-#define OUTPUT_POWER_LIMIT                              255                         // Maximum combined value of all channels
+#define DEVICE_UUID                                     {0xB8, 0x66, 0xA2, 0xD6}    // Unique 4 byte UUID
+#define OUTPUT_POWER_LIMIT                              255*2                       // Maximum combined value of all channels
 #define LED_BLINK_ONMESSAGE                             0                           // 1 for enable, 0 for disable
 #define STATUS_INTERVAL_TIME                            5                           // In seconds
+#define NUM_SEND_RETRIES                                2                           // Must be >= 1
 
 
 #define FIRMWARE_VERSION                                0x01

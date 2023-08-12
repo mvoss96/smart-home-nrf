@@ -4,7 +4,21 @@
 #include "Arduino.h"
 #include <NewEncoder.h>
 #include <LowPower.h>
+#include <CircularBuffer.h>
 #include "power.h"
+#include "blink.h"
+
+enum class EVENTS : uint8_t
+{
+    CLICK,
+    DOUBLE_CLICK,
+    ROT_RIGHT,
+    ROT_LEFT,
+    ROT_RIGHT_PRESSED,
+    ROT_LEFT_PRESSED,
+};
+
+CircularBuffer<EVENTS, 50> eventBuffer;
 
 // Status object to keep track of various parameters
 Status status;
@@ -14,9 +28,60 @@ NewEncoder encoder(2, 3, -20, 20, 0, FULL_PULSE);
 int16_t prevEncoderValue;
 long globalTimer;
 bool wasRotated = false;
+volatile bool sleeping = false;
 
 void setStatus(const uint8_t *data, uint8_t length)
 {
+    // Null data check
+    if (data == nullptr)
+    {
+        Serial.println("ERROR: Null data pointer in setStatus!");
+        return;
+    }
+
+    SetMessage msg(data, length);
+    if (!msg.isValid)
+    {
+        return;
+    }
+
+    // Check if newValue is not null before dereferencing
+    if (msg.newValue == nullptr)
+    {
+        Serial.println("ERROR: Null newValue pointer!");
+        return;
+    }
+
+    switch (msg.varIndex)
+    {
+    case 0: // TARGET
+        if (msg.changeType == ChangeTypes::SET && msg.valueSize > 0)
+        {
+            if (msg.valueSize == 5)
+            {
+                status.targetID = msg.newValue[0];
+                status.targetUUID[0] = msg.newValue[1];
+                status.targetUUID[1] = msg.newValue[2];
+                status.targetUUID[2] = msg.newValue[3];
+                status.targetUUID[3] = msg.newValue[4];
+                blink(PIN_LED2, 3, 100);
+                saveToEEPROM();
+            }
+            else
+            {
+                Serial.println("ERROR: Incompatible valueSize for TARGET!");
+            }
+        }
+        else
+        {
+            Serial.println("ERROR: Unsupported setType for TARGET!");
+        }
+        break;
+    default:
+    {
+        Serial.println("ERROR: Unsupported changeType!");
+    }
+    }
 }
 
 void setupEncoder()
@@ -36,14 +101,15 @@ void rotClick()
 {
     Serial.println("click ");
     globalTimer = millis();
-    sendRemote(LAYERS::BUTTONS, 0);
+    eventBuffer.push(EVENTS::CLICK);
+    // sendRemote(LAYERS::BUTTONS, 0);
 }
 
 void rotDoubleClick()
 {
     Serial.println("doubleclick ");
     globalTimer = millis();
-    sendRemote(LAYERS::BUTTONS, 1);
+    eventBuffer.push(EVENTS::DOUBLE_CLICK);
 }
 
 void rotLeft()
@@ -53,7 +119,7 @@ void rotLeft()
     globalTimer = millis();
     bool pressed = !digitalRead(PIN_BTN_ENC);
     Serial.println(pressed);
-    sendRemote((pressed) ? LAYERS::AXIS2 : LAYERS::AXIS1, (uint8_t)AXIS_DIRS::DOWN);
+    eventBuffer.push((pressed) ? EVENTS::ROT_LEFT_PRESSED : EVENTS::ROT_LEFT);
 }
 
 void rotRight()
@@ -63,7 +129,7 @@ void rotRight()
     globalTimer = millis();
     bool pressed = !digitalRead(PIN_BTN_ENC);
     Serial.println(pressed);
-    sendRemote((pressed) ? LAYERS::AXIS2 : LAYERS::AXIS1, (uint8_t)AXIS_DIRS::UP);
+    eventBuffer.push((pressed) ? EVENTS::ROT_RIGHT_PRESSED : EVENTS::ROT_RIGHT);
 }
 
 void readButton()
@@ -122,11 +188,23 @@ void readButton()
     }
 }
 
+void wakeup()
+{
+    if (sleeping)
+    {
+
+        Serial.println("woken up!");
+        printPowerStatus();
+        readButton();
+        sendStatus();
+        sleeping = false;
+        globalTimer = millis();
+    }
+}
+
 ISR(PCINT2_vect)
 {
     // one of pins D0 to D7 has changed
-    globalTimer = millis();
-    readEncoder();
 }
 
 void readEncoder()
@@ -155,23 +233,48 @@ void readEncoder()
 
 void checkForSleep()
 {
-    static bool sleeping = false;
-    if (sleeping)
-    {
-        Serial.println("woken up!");
-        sleeping = false;
-    }
     if (millis() - globalTimer > SLEEP_AFTER_MS)
     {
         sleeping = true;
-        delay(500); // wait for voltage to stabilize
-        printPowerStatus();
-        sendStatus();
         Serial.println("sleep");
-        Serial.println("Disable Radio");
+        delay(10);
         _radio.powerDown();
-        delay(100);
         LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
+
+        Serial.println("woken up!");
         globalTimer = millis();
+        readEncoder();
+        sendStatus();
+        sleeping = false;
+        globalTimer = millis();
+    }
+}
+
+void sendEvents()
+{
+    if (!eventBuffer.isEmpty())
+    {
+        EVENTS ev = eventBuffer.pop();
+        switch (ev)
+        {
+        case EVENTS::CLICK:
+            sendRemote(LAYERS::BUTTONS, 0);
+            break;
+        case EVENTS::DOUBLE_CLICK:
+            sendRemote(LAYERS::BUTTONS, 1);
+            break;
+        case EVENTS::ROT_RIGHT:
+            sendRemote(LAYERS::AXIS1, (uint8_t)AXIS_DIRS::UP);
+            break;
+        case EVENTS::ROT_LEFT:
+            sendRemote(LAYERS::AXIS1, (uint8_t)AXIS_DIRS::DOWN);
+            break;
+        case EVENTS::ROT_RIGHT_PRESSED:
+            sendRemote(LAYERS::AXIS2, (uint8_t)AXIS_DIRS::UP);
+            break;
+        case EVENTS::ROT_LEFT_PRESSED:
+            sendRemote(LAYERS::AXIS2, (uint8_t)AXIS_DIRS::DOWN);
+            break;
+        }
     }
 }

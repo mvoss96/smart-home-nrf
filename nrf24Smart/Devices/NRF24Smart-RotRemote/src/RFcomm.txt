@@ -92,6 +92,7 @@ void saveToEEPROM()
 
 void radioInit()
 {
+    digitalWrite(PIN_RADIO_POWER, HIGH);
     Serial.print("Initialize Radio with ID:");
     Serial.println(radioID);
     if (!_radio.init(radioID, PIN_RADIO_CE, PIN_RADIO_CSN, NRFLite::BITRATE250KBPS, RADIO_CHANNEL))
@@ -99,9 +100,11 @@ void radioInit()
         while (1)
         {
             Serial.println("Can't communicate with radio");
+            digitalWrite(PIN_RADIO_POWER, LOW);
             delay(1000);
         }
     }
+    digitalWrite(PIN_RADIO_CE, LOW);
 }
 
 void connectToServer()
@@ -192,16 +195,16 @@ void sendRemote(LAYERS layer, uint8_t value)
     }
 }
 
-void sendStatus()
+void sendStatus(bool isAck)
 {
-    ClientPacket pck(radioID, MSG_TYPES::STATUS, (uint8_t *)&status, sizeof(status));
+    ClientPacket pck(radioID, (isAck) ? MSG_TYPES::OK : MSG_TYPES::STATUS, (uint8_t *)&status, sizeof(status));
     if (pck.getInitialized())
     {
         Serial.print(millis());
         Serial.print(" <- Send status message with length ");
         Serial.print(pck.getSize());
-        pck.printData();
-        // pck.print();
+        // pck.printData();
+        pck.print();
         if (nrfSend(SERVER_RADIO_ID, &pck, pck.getSize()))
         {
             Serial.println(" Success!");
@@ -261,13 +264,13 @@ void listenForPackets()
             resetEEPROM();
             delay(1000);
             break;
-        // case MSG_TYPES::SET:
-        //     Serial.print("-> SET message received ");
-        //     pck.printData();
-        //     Serial.println();
-        //     setStatus(pck.getDATA(), pck.getSize());
-        //     sendStatus();
-        //     break;
+        case MSG_TYPES::SET:
+            Serial.print("-> SET message received ");
+            pck.printData();
+            Serial.println();
+            setStatus(pck.getDATA(), pck.getSize());
+            sendStatus(true);
+            break;
         default:
             Serial.println("-> Unsupported message received!");
         }
