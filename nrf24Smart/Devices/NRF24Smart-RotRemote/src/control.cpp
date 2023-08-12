@@ -13,7 +13,9 @@ enum class EVENTS : uint8_t
     CLICK,
     DOUBLE_CLICK,
     ROT_RIGHT,
-    ROT_LEFT
+    ROT_LEFT,
+    ROT_RIGHT_PRESSED,
+    ROT_LEFT_PRESSED,
 };
 
 CircularBuffer<EVENTS, 50> eventBuffer;
@@ -108,7 +110,6 @@ void rotDoubleClick()
     Serial.println("doubleclick ");
     globalTimer = millis();
     eventBuffer.push(EVENTS::DOUBLE_CLICK);
-    // sendRemote(LAYERS::BUTTONS, 1);
 }
 
 void rotLeft()
@@ -118,8 +119,7 @@ void rotLeft()
     globalTimer = millis();
     bool pressed = !digitalRead(PIN_BTN_ENC);
     Serial.println(pressed);
-    eventBuffer.push(EVENTS::ROT_LEFT);
-    // sendRemote((pressed) ? LAYERS::AXIS2 : LAYERS::AXIS1, (uint8_t)AXIS_DIRS::DOWN);
+    eventBuffer.push((pressed) ? EVENTS::ROT_LEFT_PRESSED : EVENTS::ROT_LEFT);
 }
 
 void rotRight()
@@ -129,8 +129,7 @@ void rotRight()
     globalTimer = millis();
     bool pressed = !digitalRead(PIN_BTN_ENC);
     Serial.println(pressed);
-    eventBuffer.push(EVENTS::ROT_RIGHT);
-    // sendRemote((pressed) ? LAYERS::AXIS2 : LAYERS::AXIS1, (uint8_t)AXIS_DIRS::UP);
+    eventBuffer.push((pressed) ? EVENTS::ROT_RIGHT_PRESSED : EVENTS::ROT_RIGHT);
 }
 
 void readButton()
@@ -269,6 +268,12 @@ void sendEvents()
             break;
         case EVENTS::ROT_LEFT:
             sendRemote(LAYERS::AXIS1, (uint8_t)AXIS_DIRS::DOWN);
+            break;
+        case EVENTS::ROT_RIGHT_PRESSED:
+            sendRemote(LAYERS::AXIS2, (uint8_t)AXIS_DIRS::UP);
+            break;
+        case EVENTS::ROT_LEFT_PRESSED:
+            sendRemote(LAYERS::AXIS2, (uint8_t)AXIS_DIRS::DOWN);
             break;
         }
     }
