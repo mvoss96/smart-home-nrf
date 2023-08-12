@@ -35,7 +35,7 @@ void setStatus(const uint8_t *data, uint8_t length)
     // Null data check
     if (data == nullptr)
     {
-        Serial.println("ERROR: Null data pointer in setStatus!");
+        Serial.println(F("ERROR: Null data pointer in setStatus!"));
         return;
     }
 
@@ -48,7 +48,7 @@ void setStatus(const uint8_t *data, uint8_t length)
     // Check if newValue is not null before dereferencing
     if (msg.newValue == nullptr)
     {
-        Serial.println("ERROR: Null newValue pointer!");
+        Serial.println(F("ERROR: Null newValue pointer!"));
         return;
     }
 
@@ -69,17 +69,17 @@ void setStatus(const uint8_t *data, uint8_t length)
             }
             else
             {
-                Serial.println("ERROR: Incompatible valueSize for TARGET!");
+                Serial.println(F("ERROR: Incompatible valueSize for TARGET!"));
             }
         }
         else
         {
-            Serial.println("ERROR: Unsupported setType for TARGET!");
+            Serial.println(F("ERROR: Unsupported setType for TARGET!"));
         }
         break;
     default:
     {
-        Serial.println("ERROR: Unsupported changeType!");
+        Serial.println(F("ERROR: Unsupported changeType!"));
     }
     }
 }
@@ -89,7 +89,7 @@ void setupEncoder()
     NewEncoder::EncoderState state;
     if (!encoder.begin())
     {
-        Serial.println("Encoder Failed to Start. Check pin assignments and available interrupts. Aborting.");
+        Serial.println(F("Encoder Failed to Start. Check pin assignments and available interrupts. Aborting."));
         while (1)
         {
             yield();
@@ -99,7 +99,7 @@ void setupEncoder()
 
 void rotClick()
 {
-    Serial.println("click ");
+    Serial.println(F("click "));
     globalTimer = millis();
     eventBuffer.push(EVENTS::CLICK);
     // sendRemote(LAYERS::BUTTONS, 0);
@@ -107,14 +107,14 @@ void rotClick()
 
 void rotDoubleClick()
 {
-    Serial.println("doubleclick ");
+    Serial.println(F("doubleclick "));
     globalTimer = millis();
     eventBuffer.push(EVENTS::DOUBLE_CLICK);
 }
 
 void rotLeft()
 {
-    Serial.print("left ");
+    Serial.print(F("left "));
     wasRotated = true;
     globalTimer = millis();
     bool pressed = !digitalRead(PIN_BTN_ENC);
@@ -124,7 +124,7 @@ void rotLeft()
 
 void rotRight()
 {
-    Serial.print("right ");
+    Serial.print(F("right "));
     wasRotated = true;
     globalTimer = millis();
     bool pressed = !digitalRead(PIN_BTN_ENC);
@@ -169,7 +169,7 @@ void readButton()
         lastPin = HIGH;
         if (millis() - lastLow > LONG_PRESS_MS && wasRotated == false)
         {
-            Serial.println("Long press");
+            Serial.println(F("Long press"));
             return;
         }
         if (millis() - lastClick < DOUBLE_CLICK_MS)
@@ -193,7 +193,7 @@ void wakeup()
     if (sleeping)
     {
 
-        Serial.println("woken up!");
+        Serial.println(F("woken up!"));
         printPowerStatus();
         readButton();
         sendStatus();
@@ -212,7 +212,7 @@ void readEncoder()
     NewEncoder::EncoderState currentEncoderState;
     if (encoder.getState(currentEncoderState))
     {
-        Serial.print("Encoder: ");
+        Serial.print(F("Encoder: "));
         globalTimer = millis();
         switch (currentEncoderState.currentClick)
         {
@@ -236,12 +236,12 @@ void checkForSleep()
     if (millis() - globalTimer > SLEEP_AFTER_MS)
     {
         sleeping = true;
-        Serial.println("sleep");
+        Serial.println(F("sleep"));
         delay(10);
         _radio.powerDown();
         LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
 
-        Serial.println("woken up!");
+        Serial.println(F("woken up!"));
         globalTimer = millis();
         readEncoder();
         sendStatus();
