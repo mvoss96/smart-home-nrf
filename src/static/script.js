@@ -43,7 +43,9 @@ async function fetchAndPopulate() {
         alert('Login Failed!');
         return false;  // you should return here to avoid further execution
     }
+
     const devices = await response.json();
+    devices.sort((a, b) => a.id - b.id); // Sort devices by device.id
     const table = document.getElementById('devicesTable');
     while (table.rows.length > 1) { table.deleteRow(1); }
     devices.forEach(device => populateTable(device, table));
