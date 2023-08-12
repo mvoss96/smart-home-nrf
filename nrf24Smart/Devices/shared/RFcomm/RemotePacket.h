@@ -20,12 +20,12 @@ public:
     {
         if (pckSize < 14)
         {
-            Serial.println("Too small pckSize");
+            Serial.println(F("Too small pckSize"));
             return;
         }
         if (pckSize > 32)
         {
-            Serial.println("Too large pckSize");
+            Serial.println(F("Too large pckSize"));
             return;
         }
 
@@ -69,38 +69,38 @@ public:
 
     void printData()
     {
-        Serial.print(": [");
-        Serial.print("] ");
+        Serial.print(F(": ["));
+        Serial.print(F("] "));
     }
 
     void print()
     {
-        Serial.print("FromRemotePacket: ");
-        Serial.print("valid: ");
+        Serial.print(F("FromRemotePacket: "));
+        Serial.print(F("valid: "));
         Serial.print(valid);
-        Serial.print(" ");
-        Serial.print("ID: ");
+        Serial.print(F(" "));
+        Serial.print(F("ID: "));
         Serial.print(ID);
-        Serial.print(" ");
-        Serial.print("UUID: ");
+        Serial.print(F(" "));
+        Serial.print(F("UUID: "));
         for (size_t i = 0; i < sizeof(UUID); i++)
         {
             Serial.print(UUID[i]);
             Serial.print(" ");
         }
-        Serial.print("TARGET_UUID: ");
+        Serial.print(F("TARGET_UUID: "));
         for (size_t i = 0; i < sizeof(UUID); i++)
         {
             Serial.print(TARGET_UUID[i]);
             Serial.print(" ");
         }
-        Serial.print("LAYER: ");
+        Serial.print(F("LAYER: "));
         Serial.print(LAYER);
-        Serial.print(" ");
-        Serial.print("VALUE: ");
+        Serial.print(F(" "));
+        Serial.print(F("VALUE: "));
         Serial.print(VALUE);
-        Serial.print(" ");
-        Serial.print("CHECKSUM: ");
+        Serial.print(F(" "));
+        Serial.print(F("CHECKSUM: "));
         Serial.print(((uint16_t)CHECKSUM[0] << 8) | CHECKSUM[1]);
     }
 };
@@ -157,7 +157,7 @@ public:
 
     void printData()
     {
-        Serial.print(": [");
+        Serial.print(F(": ["));
         size_t s = getSize();
         for (size_t i = 0; i < s; i++)
         {
@@ -167,34 +167,34 @@ public:
                 Serial.print(" ");
             }
         }
-        Serial.print("] ");
+        Serial.print(F("] "));
     }
 
     void print()
     {
-        Serial.print("RemotePacket: ");
-        Serial.print("ID: ");
+        Serial.print(F("RemotePacket: "));
+        Serial.print(F("ID: "));
         Serial.print(ID);
-        Serial.print(" ");
-        Serial.print("UUID: ");
+        Serial.print(F(" "));
+        Serial.print(F("UUID: "));
         for (size_t i = 0; i < sizeof(UUID); i++)
         {
             Serial.print(UUID[i]);
-            Serial.print(" ");
+            Serial.print(F(" "));
         }
-        Serial.print("TARGET_UUID: ");
+        Serial.print(F("TARGET_UUID: "));
         for (size_t i = 0; i < sizeof(UUID); i++)
         {
             Serial.print(TARGET_UUID[i]);
-            Serial.print(" ");
+            Serial.print(F(" "));
         }
-        Serial.print("LAYER: ");
+        Serial.print(F("LAYER: "));
         Serial.print(LAYER);
-        Serial.print(" ");
-        Serial.print("VALUE: ");
+        Serial.print(F(" "));
+        Serial.print(F("VALUE: "));
         Serial.print(VALUE);
-        Serial.print(" ");
-        Serial.print("CHECKSUM: ");
+        Serial.print(F(" "));
+        Serial.print(F("CHECKSUM: "));
         Serial.print(((uint16_t)CHECKSUM[0] << 8) | CHECKSUM[1]);
     }
 };

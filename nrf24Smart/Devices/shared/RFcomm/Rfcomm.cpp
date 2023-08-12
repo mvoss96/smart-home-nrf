@@ -19,13 +19,13 @@ void radioInit()
 #ifdef PIN_RADIO_POWER
     digitalWrite(PIN_RADIO_POWER, HIGH);
 #endif
-    Serial.print("Initialize Radio with ID:");
+    Serial.print(F("Initialize Radio with ID:"));
     Serial.println(radioID);
     if (!_radio.init(radioID, PIN_RADIO_CE, PIN_RADIO_CSN, NRFLite::BITRATE250KBPS, RADIO_CHANNEL))
     {
         while (1)
         {
-            Serial.println("Can't communicate with radio");
+            Serial.println(F("Can't communicate with radio"));
 #ifdef PIN_RADIO_POWER
             digitalWrite(PIN_RADIO_POWER, LOW);
 #endif
@@ -54,7 +54,7 @@ uint8_t nrfSend(uint8_t toRadioId, void *data, uint8_t length, NRFLite::SendType
         {
             break;
         }
-        Serial.print("Retrying send... ");
+        Serial.print(F("Retrying send... "));
         delay(200);
     }
     return res;
@@ -66,23 +66,23 @@ void sendStatus(bool isAck)
     if (pck.getInitialized())
     {
         Serial.print(millis());
-        Serial.print(" <- Send status message with length ");
+        Serial.print(F(" <- Send status message with length "));
         Serial.print(pck.getSize());
-        Serial.print(" ");
+        Serial.print(F(" "));
         // pck.printData();
         pck.print();
         if (nrfSend(SERVER_RADIO_ID, &pck, pck.getSize()))
         {
-            Serial.println(" Success!");
+            Serial.println(F(" Success!"));
         }
         else
         {
-            Serial.println(" Failed!");
+            Serial.println(F(" Failed!"));
         }
     }
     else
     {
-        Serial.println("ERROR: ClientPacket not initialized!");
+        Serial.println(F("ERROR: ClientPacket not initialized!"));
     }
     statusTimer = millis();
 }
@@ -92,25 +92,25 @@ void sendRemote(LAYERS layer, uint8_t value)
 {
     if (status.targetID == 0)
     {
-        Serial.println("Missing targetID");
+        Serial.println(F("Missing targetID"));
         return;
     }
     RemotePacket pck(radioID, status.targetUUID, layer, value);
     Serial.print(millis());
-    Serial.print(" <- Send remote message to ");
+    Serial.print(F(" <- Send remote message to "));
     Serial.print(status.targetID);
-    Serial.print(" with length ");
+    Serial.print(F(" with length "));
     Serial.print(pck.getSize());
-    Serial.print(" ");
+    Serial.print(F(" "));
     pck.printData();
     pck.print();
     if (nrfSend(status.targetID, &pck, pck.getSize()))
     {
-        Serial.println(" Success!");
+        Serial.println(F(" Success!"));
     }
     else
     {
-        Serial.println(" Failed!");
+        Serial.println(F(" Failed!"));
     }
 }
 #endif
@@ -138,18 +138,18 @@ void connectToServer()
         while (!serverConnected)
         {
             // Try to reach Server
-            Serial.println("Send INIT Message to Server!");
+            Serial.println(F("Send INIT Message to Server!"));
             bool result = nrfSend(SERVER_RADIO_ID, &pck, pck.getSize());
             if (!result)
             {
-                Serial.println("Server could not be reached for first INIT message!");
+                Serial.println(F("Server could not be reached for first INIT message!"));
                 delay(3000);
                 continue;
             }
 
             // Read answer message from server
             uint8_t buf[32] = {0};
-            Serial.print("Wait for new ID from Server");
+            Serial.print(F("Wait for new ID from Server"));
             unsigned long startTime = millis();
             for (;;)
             {
@@ -161,7 +161,7 @@ void connectToServer()
                     ServerPacket pck(buf, packetSize);
                     if (!pck.isValid())
                     {
-                        Serial.println("ServerPacket not valid!");
+                        Serial.println(F("ServerPacket not valid!"));
                         break;
                     }
                     uint8_t newID = pck.getDATA()[0];
@@ -175,7 +175,7 @@ void connectToServer()
                 }
                 if (millis() - startTime > 2000)
                 {
-                    Serial.println(" Timeout while waiting for answer from Server!");
+                    Serial.println(F(" Timeout while waiting for answer from Server!"));
                     break;
                 }
                 delay(500);
@@ -217,11 +217,11 @@ void listenForPackets()
             FromRemotePacket rPck(buf, packetSize);
             if (!rPck.isValid())
             {
-                Serial.println("WARNING: Invalid RemotePacket received!");
+                Serial.println(F("WARNING: Invalid RemotePacket received!"));
                 return;
             }
 
-            Serial.print("-> REMOTE message received ");
+            Serial.print(F("-> REMOTE message received "));
             rPck.print();
             Serial.println();
             setRemote(rPck.LAYER, rPck.VALUE);
@@ -232,12 +232,12 @@ void listenForPackets()
         ServerPacket pck(buf, packetSize);
         if (!pck.isValid())
         {
-            Serial.println("WARNING: Invalid Packet received!");
+            Serial.println(F("WARNING: Invalid Packet received!"));
             return;
         }
         if (!checkUUID(pck))
         {
-            Serial.println("WARNING: Received Packet UUID mismatch!");
+            Serial.println(F("WARNING: Received Packet UUID mismatch!"));
             return;
         }
         if (LED_BLINK_ONMESSAGE)
@@ -249,19 +249,19 @@ void listenForPackets()
         switch ((MSG_TYPES)pck.getTYPE())
         {
         case MSG_TYPES::RESET:
-            Serial.println("-> RESET message received...");
+            Serial.println(F("-> RESET message received..."));
             resetEEPROM();
             delay(1000);
             break;
         case MSG_TYPES::SET:
-            Serial.print("-> SET message received ");
+            Serial.print(F("-> SET message received "));
             pck.printData();
             Serial.println();
             setStatus(pck.getDATA(), pck.getSize());
             sendStatus(true);
             break;
         default:
-            Serial.println("-> Unsupported message received!");
+            Serial.println(F("-> Unsupported message received!"));
         }
         if (LED_BLINK_ONMESSAGE)
         {

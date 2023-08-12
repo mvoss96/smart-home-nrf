@@ -57,21 +57,21 @@ struct SetMessage
     {
         if (size < 4)
         {
-            Serial.println("ERROR: Too small SetMessage size!");
+            Serial.println(F("ERROR: Too small SetMessage size!"));
             return;
         }
         varIndex = data[0];
         uint8_t rawChangeType = data[1];
         if (rawChangeType > static_cast<uint8_t>(ChangeTypes::DECREASE))
         {
-            Serial.println("ERROR: Invalid changeType!");
+            Serial.println(F("ERROR: Invalid changeType!"));
             return;
         }
         changeType = static_cast<ChangeTypes>(rawChangeType);
         valueSize = data[2];
         if (size - valueSize != 3)
         {
-            Serial.println("ERROR: Incompatible SetMessage size!");
+            Serial.println(F("ERROR: Incompatible SetMessage size!"));
             return;
         }
         newValue = data + 3;

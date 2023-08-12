@@ -1,43 +1,38 @@
 #include <Arduino.h>
 #include "RFcomm.h"
+#include "power.h"
+#include "util.h"
 
-void (*resetFunc)(void) = 0;
+void setPinModes()
+{
+  pinMode(PIN_LED1, OUTPUT);
+  pinMode(PIN_LED2, OUTPUT);
+}
 
 void setup()
 {
   Serial.begin(115200);
-  resetEEPROM();
-  delay(100000000);
+  printGreetingMessage();
+  printPowerStatus();
+
+  setPinModes();
+  delay(500);
+  digitalWrite(PIN_LED1, HIGH);
+  digitalWrite(PIN_LED2, HIGH);
   connectToServer();
+  loadStatusFromEEPROM();
+  sendStatus();
   printEEPROM(5);
-  delay(1000);
+  delay(500);
 }
 
 void loop()
 {
+  // Check for reset button
   if (!serverConnected)
   {
     Serial.println("Connecting to Server:");
     connectToServer();
   }
-  // Listen for new Messages
-  uint8_t packetSize = _radio.hasData();
-  uint8_t buf[32] = {0};
-  if (packetSize > 0)
-  {
-    _radio.readData(&buf);
-    ServerPacket pck(buf, packetSize);
-    if (pck.isValid())
-    {
-      switch ((MSG_TYPES)pck.getTYPE())
-      {
-      case MSG_TYPES::RESET:
-        Serial.println("RESET message received: resetting Device...");
-        resetEEPROM();
-        break;
-      default:
-        Serial.println("Unsupported message received!");
-      }
-    }
-  }
+  listenForPackets();
 }

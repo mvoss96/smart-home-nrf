@@ -1,7 +1,7 @@
 #include "control.h"
 #include "config.h"
 #include "RFcomm.h"
-#include "Arduino.h"
+#include <Arduino.h>
 #include <NewEncoder.h>
 #include <LowPower.h>
 #include <CircularBuffer.h>

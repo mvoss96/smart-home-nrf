@@ -51,24 +51,24 @@ public:
     {
         if (pckSize < 6)
         {
-            Serial.println("Too small pckSize");
+            Serial.println(F("Too small pckSize"));
             return;
         }
         if (pckSize > 32)
         {
-            Serial.println("Too large pckSize");
+            Serial.println(F("Too large pckSize"));
             return;
         }
 
         dataSize = pckSize - (32 - sizeof(DATA)) - 2;
         if (dataSize > sizeof(DATA) - 2)
         {
-            Serial.println("Too large Server-dataSize!");
+            Serial.println(F("Too large Server-dataSize!"));
             return;
         }
         if (dataSize < 0)
         {
-            Serial.println("Too small Server-dataSize!");
+            Serial.println(F("Too small Server-dataSize!"));
             return;
         }
 
@@ -111,42 +111,42 @@ public:
 
     void printData()
     {
-        Serial.print(": [");
+        Serial.print(F(": ["));
         size_t s = getSize();
         for (size_t i = 0; i < s; i++)
         {
             Serial.print((int)(((uint8_t *)this)[i]), HEX);
             if (i < s - 1)
             {
-                Serial.print(" ");
+                Serial.print(F(" "));
             }
         }
-        Serial.print("] ");
+        Serial.print(F("] "));
     }
 
     void print()
     {
-        Serial.print("ServerPacket: ");
-        Serial.print("ID: ");
+        Serial.print(F("ServerPacket: "));
+        Serial.print(F("ID: "));
         Serial.print(ID);
-        Serial.print(" ");
-        Serial.print("UUID: ");
+        Serial.print(F(" "));
+        Serial.print(F("UUID: "));
         Serial.print(UUID[0]);
-        Serial.print(" ");
+        Serial.print(F(" "));
         Serial.print(UUID[1]);
-        Serial.print(" ");
+        Serial.print(F(" "));
         Serial.print(UUID[2]);
-        Serial.print(" ");
+        Serial.print(F(" "));
         Serial.print(UUID[3]);
-        Serial.print(" ");
-        Serial.print("TYPE: ");
+        Serial.print(F(" "));
+        Serial.print(F("TYPE: "));
         Serial.print(MSG_TYPE);
-        Serial.print(" ");
-        Serial.print("DATA: ");
+        Serial.print(F(" "));
+        Serial.print(F("DATA: "));
         for (size_t i = 0; i < dataSize + 2; i++)
         {
             Serial.print(DATA[i]);
-            Serial.print(" ");
+            Serial.print(F(" "));
         }
         Serial.println();
     }

@@ -7,7 +7,7 @@
 
 void resetEEPROM()
 {
-    Serial.println("Reset EEPROM...");
+    Serial.println(F("Reset EEPROM..."));
     blinkBoth(6, 200);
     for (size_t i = 0; i < EEPROM.length(); i++)
     {
@@ -30,22 +30,22 @@ void printEEPROM(int n)
     for (int i = 0; i < n; i++)
     {
         uint8_t val = EEPROM.read(i);
-        Serial.print("Address: ");
+        Serial.print(F("Address: "));
         Serial.print(i);
-        Serial.print(" Value: ");
+        Serial.print(F(" Value: "));
         if (val < 16)
             Serial.print('0');
         Serial.print(val, HEX);
-        Serial.print(" (");
+        Serial.print(F(" ("));
         Serial.print(val);
-        Serial.println(")");
+        Serial.println(')');
     }
 }
 
 void loadFromEEPROM()
 {
     // Check if Server was already set up and new ID saved
-    Serial.println("Loading EEPROM...");
+    Serial.println(F("Loading EEPROM..."));
     radioID = EEPROM.read(0);
     if (radioID != INITIAL_RADIO_ID)
     {
@@ -60,7 +60,7 @@ void loadFromEEPROM()
     }
     else
     {
-        Serial.println("EEPROM not setup");
+        Serial.println(F("EEPROM not setup"));
     }
     serverConnected = false;
 }
@@ -76,7 +76,7 @@ void loadStatusFromEEPROM()
 
 void saveToEEPROM()
 {
-    Serial.println("Saving EEPROM...");
+    Serial.println(F("Saving EEPROM..."));
     blinkBoth(2, 200);
     EEPROM.update(0, radioID);
     EEPROM.update(1, serverUUID[0]);

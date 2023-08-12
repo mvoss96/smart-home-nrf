@@ -53,7 +53,7 @@ public:
     {
         if (dataSize > sizeof(DATA) - 2)
         {
-            Serial.println("Too large Client-dataSize!");
+            Serial.println(F("Too large Client-dataSize!"));
             return;
         }
 
@@ -87,56 +87,56 @@ public:
 
     void printData()
     {
-        Serial.print(": [");
+        Serial.print(F(": ["));
         size_t s = getSize();
         for (size_t i = 0; i < s; i++)
         {
             Serial.print((int)(((uint8_t *)this)[i]), HEX);
             if (i < s - 1)
             {
-                Serial.print(" ");
+                Serial.print(F(" "));
             }
         }
-        Serial.print("] ");
+        Serial.print(F("] "));
     }
 
     void print()
     {
         if (!isInitialized)
         {
-            Serial.println("Attempted to print an uninitialized ClientPacket!");
+            Serial.println(F("Attempted to print an uninitialized ClientPacket!"));
             return;
         }
-        Serial.print("ClientPacket: ");
-        Serial.print("ID: ");
+        Serial.print(F("ClientPacket: "));
+        Serial.print(F("ID: "));
         Serial.print(ID);
-        Serial.print(" ");
-        Serial.print("UUID: ");
+        Serial.print(F(" "));
+        Serial.print(F("UUID: "));
         for (size_t i = 0; i < sizeof(UUID); i++)
         {
             Serial.print(UUID[i]);
-            Serial.print(" ");
+            Serial.print(F(" "));
         }
-        Serial.print("TYPE: ");
+        Serial.print(F("TYPE: "));
         Serial.print(MSG_TYPE);
-        Serial.print(" ");
-        Serial.print("FIRMWARE: ");
+        Serial.print(F(" "));
+        Serial.print(F("FIRMWARE: "));
         Serial.print(FIRMWARE_VERSION);
-        Serial.print(" ");
-        Serial.print("POWER: ");
+        Serial.print(F(" "));
+        Serial.print(F("POWER: "));
         Serial.print(POWER_TYPE);
-        Serial.print(" ");
-        Serial.print("STATUS_INTERVAL: ");
+        Serial.print(F(" "));
+        Serial.print(F("STATUS_INTERVAL: "));
         Serial.print(STATUS_INTERVAL);
-        Serial.print(" ");
-        Serial.print("MSG_NUM: ");
+        Serial.print(F(" "));
+        Serial.print(F("MSG_NUM: "));
         Serial.print(MSG_NUM);
-        Serial.print(" ");
-        Serial.print("DATA: ");
+        Serial.print(F(" "));
+        Serial.print(F("DATA: "));
         for (size_t i = 0; i < dataSize + 2; i++)
         {
             Serial.print(DATA[i]);
-            Serial.print(" ");
+            Serial.print(F(" "));
         }
         // Serial.println();
     }
