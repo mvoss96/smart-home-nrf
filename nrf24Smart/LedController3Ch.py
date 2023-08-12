@@ -4,7 +4,7 @@ from typing import Optional
 from .devices import DeviceStatus, SetMessage, CHANGE_TYPES
 
 
-class LedController3Channel(DeviceStatus):
+class LedController3Ch(DeviceStatus):
     settable_parameters = [
         "power", # 0
         "brightness", # 1
