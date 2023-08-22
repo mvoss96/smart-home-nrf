@@ -5,6 +5,7 @@ from src.DBManager import DBManager
 from src.DeviceManager import DeviceManager
 from src.CommunicationManager import CommunicationManager
 from src.WebServerManager import WebServerManager
+from src.MQTTManager import MQTTManager
 from src.Logger import setup_logger
 
 
@@ -20,6 +21,7 @@ class SmartHome:
         self.device_manager.start()
         self.communication_manager = CommunicationManager(self.device_manager, self.shutdown_flag)
         self.webserver_manager = WebServerManager(self.db_manager, self.communication_manager)
+        self.mqtt_manager = MQTTManager(self.db_manager, self.communication_manager)
         self.db_manager.set_http_password("test")
 
         
@@ -40,6 +42,7 @@ class SmartHome:
 
     def start(self):
         self.start_thread_and_catch_exceptions(self.webserver_manager.run)
+        self.start_thread_and_catch_exceptions(self.mqtt_manager.run)
         time.sleep(1) # Wait for server
         self.start_thread_and_catch_exceptions(self.communication_manager.listen)
         self.start_thread_and_catch_exceptions(self.communication_manager.update_all_devices)

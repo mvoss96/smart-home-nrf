@@ -224,7 +224,7 @@ class CommunicationManager:
                         if dict_copy.get(key) == self.parameter_buffer[uuid_string].get(key):
                             print(f"Remove {dict_copy.get(key)} {self.parameter_buffer[uuid_string].get(key)}")
                             del self.parameter_buffer[uuid_string][key]
-                    self.db_manager.update_device_in_db(device)
+                    #self.db_manager.update_device_in_db(device)
                     
 
             time.sleep(0.2)
@@ -240,7 +240,7 @@ class CommunicationManager:
                         if id not in self.wait_for_status:
                             # print(f"delete {key}")
                             del self.parameter_buffer[uuid_string][key]
-                            self.db_manager.update_device_in_db(device)
+                            #self.db_manager.update_device_in_db(device)
                             keys_updated.remove(entry)
                             break
                         time.sleep(0.1)

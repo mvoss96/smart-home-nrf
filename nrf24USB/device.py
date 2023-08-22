@@ -111,7 +111,6 @@ class NRF24Device:
                 else:
                     self.handle_packet(recv_type, recv_data)
 
-
             logging.error(f"NRF24USB device did not respond to send message!")
             return None
 
