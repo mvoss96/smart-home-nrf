@@ -14,6 +14,7 @@ class NRF24Device:
     Class for NRF24Device that provides functionalities to start read loop, initialize the device,
     send packets and messages, get messages, handle packets, read loop, stop read loop and destructor.
     """
+
     def __init__(self, port: str, channel: int, address: int, baudrate=115200):
         """
         Initializes the NRF24Device with provided port, channel, address, and baudrate.
@@ -45,7 +46,7 @@ class NRF24Device:
 
     def initialize_device(self):
         """
-        Initializes the NRF24USB device. Checks and sets the INIT message from the device. Raises ConnectionError if the device 
+        Initializes the NRF24USB device. Checks and sets the INIT message from the device. Raises ConnectionError if the device
         does not send correct INIT message or does not react correctly to Host INIT message.
         """
         logging.info(f"Initialize NRF24USB Device with channel: {self.channel} address: {self.address} ...")
@@ -99,14 +100,20 @@ class NRF24Device:
             self.send_packet(bytes([destination, require_ack]) + bytes(data), PACKET_TYPES.MSG)
             if not require_ack:
                 return []
-            (recv_type, recv_data) = self.reader.wait_for_packet(timeout=0.5)
-            if recv_type is PACKET_TYPES.OK:
-                return recv_data
-            elif recv_type is PACKET_TYPES.ERROR:
-                return None
-            else:
-                logging.warning(f"Did not receive correct response to send_msg {recv_type} {recv_data}")
-                return None
+            for _ in range(5):
+                (recv_type, recv_data) = self.reader.wait_for_packet(timeout=0.5)
+                if recv_type is PACKET_TYPES.OK:
+                    return recv_data
+                elif recv_type is PACKET_TYPES.ERROR:
+                    return None
+                elif recv_type is None:
+                    logging.warning("received packet with type None!")
+                else:
+                    self.handle_packet(recv_type, recv_data)
+
+
+            logging.error(f"NRF24USB device did not respond to send message!")
+            return None
 
     def get_message(self):
         """
@@ -122,7 +129,7 @@ class NRF24Device:
 
     def handle_packet(self, packet_type: PACKET_TYPES, packet_data: list[int]):
         """
-        Handles packet based on the type. Logs error for ERROR type, attempts to reconnect for INIT type, 
+        Handles packet based on the type. Logs error for ERROR type, attempts to reconnect for INIT type,
         puts the message into the queue for MSG type, and logs warning for other types.
         """
         if packet_type == PACKET_TYPES.ERROR:

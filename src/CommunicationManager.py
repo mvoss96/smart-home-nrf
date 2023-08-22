@@ -213,8 +213,11 @@ class CommunicationManager:
                                 del(self.failed_sends[uuid_string])
                                 keys_unsupported.add(key)
                         else:
+                            if uuid_string in self.failed_sends:
+                                del(self.failed_sends[uuid_string])
                             self.wait_for_status.add(id)
                             keys_updated.append((id, uuid_string, key, value))
+                        time.sleep(0.05)
 
                     for key in keys_unsupported:
                         # Only remove if values have not changed:
@@ -222,6 +225,7 @@ class CommunicationManager:
                             print(f"Remove {dict_copy.get(key)} {self.parameter_buffer[uuid_string].get(key)}")
                             del self.parameter_buffer[uuid_string][key]
                     self.db_manager.update_device_in_db(device)
+                    
 
             time.sleep(0.2)
             for entry in keys_updated:
