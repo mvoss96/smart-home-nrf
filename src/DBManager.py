@@ -148,7 +148,7 @@ class DBManager:
             with self.db_lock:
                 self.devices_table.insert(device_dict)
 
-            self.changed_devices_queue.put(device_dict)
+            self.changed_devices_queue.put((device_dict["uuid"], device_dict))
             logger.info(f"Device {device_dict['type']} added!")
         except Exception as e:
             logger.error(f"Unexpected error while adding device to DB: {e}")

@@ -48,7 +48,11 @@ class MQTTManager:
         self.client.subscribe(f"{root_topic}/devices/+/set/#")
         while True:
             while db_change := self.db_manager.get_changes():
-                uuid, change = db_change
+                try:
+                    uuid, change = db_change
+                except ValueError as e:
+                    logger.error(f"Unexpected content in queque: {db_change}")
+                    return
                 for key, value in change.items():
                     if key == "uuid":
                         continue

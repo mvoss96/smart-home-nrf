@@ -13,7 +13,7 @@ class DeviceStatus:
 
     def get_status(self) -> dict:
         raise NotImplementedError()
-    
+
     @classmethod
     def get_param(cls, parameter: str, status: dict) -> Optional[str]:
         raise NotImplementedError()
@@ -23,12 +23,14 @@ class DeviceStatus:
         raise NotImplementedError()
 
     @classmethod
-    def parse_to_float(cls, value: list[int]) -> Optional[float]:
+    def parse_to_float(cls, value: list[int], round_value: int = 0) -> Optional[float]:
         try:
             # Convert list of ints to bytes
             bytes_object = bytes(value)
             # Unpack bytes to float
             single_float = struct.unpack("f", bytes_object)[0]
+            if round_value != 0:
+                return round(single_float, round_value)
             return single_float
         except Exception:
             return None
