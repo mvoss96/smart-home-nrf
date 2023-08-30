@@ -2,6 +2,7 @@ from tinydb import TinyDB, Query
 import random
 from threading import Lock
 from src.Logger import setup_logger
+import queue
 
 logger = setup_logger()
 
@@ -19,6 +20,13 @@ class DBManager:
 
         # Initialize the uuid attribute by calling the initialize_uuid method
         self.uuid = self.initialize_uuid()
+
+        # Queque to notify the mqttManger about changed parameters
+        self.changed_devices_queue = queue.Queue()
+
+        # Make sure all devices get published to mqtt on startup
+        for device in self.get_all_devices():
+            self.changed_devices_queue.put((device["uuid"], device))
 
     def initialize_devices_table(self):
         """
@@ -101,7 +109,7 @@ class DBManager:
             with self.db_lock:
                 Q = Query()
                 result = self.devices_table.search(Q.uuid == uuid)
-            return result[0] if len(result) > 0 else None
+            return result[0].copy() if len(result) > 0 else None
         except Exception as e:
             logger.error(f"Error occurred while searching device by UUID: {e}")
             return None
@@ -139,6 +147,8 @@ class DBManager:
         try:
             with self.db_lock:
                 self.devices_table.insert(device_dict)
+
+            self.changed_devices_queue.put((device_dict["uuid"], device_dict))
             logger.info(f"Device {device_dict['type']} added!")
         except Exception as e:
             logger.error(f"Unexpected error while adding device to DB: {e}")
@@ -148,9 +158,32 @@ class DBManager:
         Updates a device's information in the database.
         """
         Q = Query()
+        uuid = device_dict["uuid"]
         try:
+            device = self.search_device_in_db(uuid)
+            if not device or device == device_dict:
+                return
+            
+            # Extract changes
+            changes = {}
+            for key, value in device_dict.items():
+                if key != 'uuid' and key in device and device[key] != value:
+                    if isinstance(value, dict):
+                        changes[key] = {}
+                        for sub_key, sub_value in value.items():
+                            old_val = device[key].get(sub_key)
+                            if sub_value != old_val:
+                                changes[key][sub_key] = sub_value
+                    else:
+                        changes[key] = value
+
+            if changes != {}:
+                self.changed_devices_queue.put((str(uuid), changes))
+
+            # Update DB
             with self.db_lock:
-                self.devices_table.update(device_dict, Q.uuid == device_dict["uuid"])
+                self.devices_table.update(device_dict, Q.uuid == uuid)
+            
         except Exception as e:
             logger.error(f"Unexpected error while updating device in DB: {e}")
 
@@ -170,8 +203,7 @@ class DBManager:
         """
         Change the name of a Device using the given UUID
         """
-        # logger.info(f"Changing Name of Device with uuid {device_uuid} to {new_name}")
-        Q = Query()
+        logger.info(f"Changing Name of Device with uuid {device_uuid} to {new_name}")
         try:
             # Find the device with the given UUID
             device = self.search_device_in_db(device_uuid)
@@ -186,7 +218,6 @@ class DBManager:
         Change the connection_health of a Device using the given UUID
         """
         # logger.info(f"Changing connection_health of Device with uuid {device_uuid} to {health}")
-        Q = Query()
         try:
             # Find the device with the given UUID
             device = self.search_device_in_db(device_uuid)
@@ -195,3 +226,6 @@ class DBManager:
                 self.update_device_in_db(device)
         except Exception as e:
             logger.error(f"Unexpected error for device in DB: {e}")
+
+    def get_changes(self):
+        return self.changed_devices_queue.get() if not self.changed_devices_queue.empty() else None

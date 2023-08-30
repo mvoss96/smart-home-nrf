@@ -24,6 +24,7 @@ class CommunicationManager:
 
         # Internal Buffer for puffering status changes
         self.parameter_buffer = {}
+        self.failed_sends = {}
 
         # Internal Dict for storing msg_nums to calculate a connection health
         self.max_msg_num_length = 20
@@ -115,7 +116,7 @@ class CommunicationManager:
 
         if msg.MSG_TYPE == MSG_TYPES.OK.value and msg.ID in self.wait_for_status:
             self.wait_for_status.remove(msg.ID)
-            #print("removed ID:", msg.ID)
+            # print("removed ID:", msg.ID)
 
         # Create an instance of the class
         try:
@@ -203,32 +204,43 @@ class CommunicationManager:
                             logger.error(
                                 f"Failed to send SET message to device:{device['type']} with uuid:{device['uuid']}!"
                             )
+                            if uuid_string not in self.failed_sends:
+                                self.failed_sends[uuid_string] = time.time()
+                            elif time.time() - self.failed_sends[uuid_string] > 5:
+                                logger.error(
+                                    f"Timeout for SET message to device:{device['type']} with uuid:{device['uuid']}!"
+                                )
+                                del(self.failed_sends[uuid_string])
+                                keys_unsupported.add(key)
                         else:
+                            if uuid_string in self.failed_sends:
+                                del(self.failed_sends[uuid_string])
                             self.wait_for_status.add(id)
-
                             keys_updated.append((id, uuid_string, key, value))
+                        time.sleep(0.05)
 
                     for key in keys_unsupported:
                         # Only remove if values have not changed:
                         if dict_copy.get(key) == self.parameter_buffer[uuid_string].get(key):
-                            print(
-                                f"Remove unsupported {dict_copy.get(key)} {self.parameter_buffer[uuid_string].get(key)}"
-                            )
+                            print(f"Remove {dict_copy.get(key)} {self.parameter_buffer[uuid_string].get(key)}")
                             del self.parameter_buffer[uuid_string][key]
-                    self.db_manager.update_device_in_db(device)
+                    #self.db_manager.update_device_in_db(device)
+                    
 
             time.sleep(0.2)
             for entry in keys_updated:
                 (id, uuid_string, key, value) = entry
                 device = self.db_manager.search_device_in_db_by_id(id)
+                if device is None:
+                    continue
                 # Only remove if values have not changed:
                 for i in range(3):
                     if value == self.parameter_buffer[uuid_string].get(key):
-                        #print("wait for status from id", id)
+                        # print("wait for status from id", id)
                         if id not in self.wait_for_status:
                             # print(f"delete {key}")
                             del self.parameter_buffer[uuid_string][key]
-                            self.db_manager.update_device_in_db(device)
+                            #self.db_manager.update_device_in_db(device)
                             keys_updated.remove(entry)
                             break
                         time.sleep(0.1)

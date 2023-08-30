@@ -14,7 +14,8 @@ class LedController3Ch(DeviceStatus):
         "rgb", # 5
         "output_power_limit", # 6
         "status_interval", # 7
-        "cct", # software
+        "cct", # virtual
+        "brightness_percent", # virtual
     ]
     supported_versions = [1]
     min_cct = 2500
@@ -39,6 +40,7 @@ class LedController3Ch(DeviceStatus):
         status = {
             "power": self.power,
             "brightness": self.brightness,
+            "brightness_percent": 100 * self.brightness // 255,
             "ch_1": self.ch_1,
             "ch_2": self.ch_2,
             "ch_3": self.ch_3,
@@ -98,6 +100,11 @@ class LedController3Ch(DeviceStatus):
             ch_2 = mixing_factor * 255.0
             index = cls.settable_parameters.index("rgb")
             data = [int(ch_1), int(ch_2), 0]
+        elif param == "brightness_percent":
+            index =  index = cls.settable_parameters.index("brightness")
+            data = cls.parse_byte(new_val)
+            if data:
+                data = round(data*255/100)
         else:
             return None
         if data is None:
