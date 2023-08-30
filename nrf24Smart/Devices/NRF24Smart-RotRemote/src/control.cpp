@@ -188,20 +188,6 @@ void readButton()
     }
 }
 
-void wakeup()
-{
-    if (sleeping)
-    {
-
-        Serial.println(F("woken up!"));
-        printPowerStatus();
-        readButton();
-        sendStatus();
-        sleeping = false;
-        globalTimer = millis();
-    }
-}
-
 ISR(PCINT2_vect)
 {
     // one of pins D0 to D7 has changed
@@ -237,6 +223,7 @@ void checkForSleep()
     {
         sleeping = true;
         Serial.println(F("sleep"));
+        sendStatus();
         delay(10);
         _radio.powerDown();
         LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
@@ -244,7 +231,6 @@ void checkForSleep()
         Serial.println(F("woken up!"));
         globalTimer = millis();
         readEncoder();
-        sendStatus();
         sleeping = false;
         globalTimer = millis();
     }

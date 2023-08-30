@@ -31,7 +31,7 @@ void loop()
   // Check for reset button
   if (!serverConnected)
   {
-    Serial.println("Connecting to Server:");
+    Serial.println(F("Connecting to Server:"));
     connectToServer();
   }
   listenForPackets();

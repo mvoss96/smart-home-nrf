@@ -154,7 +154,8 @@ void connectToServer()
             for (;;)
             {
                 Serial.print(".");
-                if (uint8_t packetSize = _radio.hasData(); packetSize >= 5)
+                uint8_t packetSize = _radio.hasData();
+                if (packetSize >= 5)
                 {
                     Serial.println();
                     _radio.readData(&buf);

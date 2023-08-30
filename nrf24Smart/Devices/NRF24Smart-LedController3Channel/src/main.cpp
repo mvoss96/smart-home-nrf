@@ -72,7 +72,7 @@ void loop()
 
   if (!serverConnected)
   {
-    Serial.println("Connecting to Server:");
+    Serial.println(F("Connecting to Server:"));
     connectToServer();
   }
   listenForPackets();

@@ -2,8 +2,8 @@
 #include <Arduino.h>
 #include "RFmessages.h"
 #include "config.h"
+#include "power.h"
 
-uint8_t batteryLevel();
 
 // Must be max 32 bytes
 class ClientPacket
