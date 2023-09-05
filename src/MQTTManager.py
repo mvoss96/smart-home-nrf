@@ -58,6 +58,10 @@ class MQTTManager:
                         continue
                     if isinstance(value, dict):
                         for sub_key, sub_value in value.items():
+                            # Rules for specific status keys:
+                            if sub_key == "humidity" and isinstance(sub_value, float):
+                                sub_value = round(sub_value)
+
                             topic = f"{root_topic}/devices/{uuid}/{key}/{sub_key}"
                             self.client.publish(topic, str(sub_value) if isinstance(sub_value, list) else sub_value)
                     else:
