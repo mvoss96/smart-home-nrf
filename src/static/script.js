@@ -75,7 +75,8 @@ function populateTable(device, table) {
     statusCell.appendChild(statusList);
     row.insertCell().textContent = device.connection_health ? device.connection_health*100 + '%' : 'N/A';
     row.insertCell().textContent = device.battery_powered ? Math.round(device.battery_level / 2.55) + '%' : 'N/A';
-    row.insertCell().textContent = device.uuid.join(':');
+    let uuidHex = device.uuid.map(num => num.toString(16).toUpperCase()).join(':'); // Converts each number to hex and joins them
+    row.insertCell().innerHTML = device.uuid.join(':') + "<br>(" + uuidHex +")";
     row.insertCell().textContent = device.version;
     row.insertCell().textContent = formatElapsedTime(device.last_seen);
 }

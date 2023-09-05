@@ -125,6 +125,7 @@ class CommunicationManager:
             # logger.info(f"update status for device {device.get('name')} {device.get('uuid')}")
             if device["battery_powered"]:
                 device["battery_level"] = msg.BATTERY
+                device["battery_percent"] = round(msg.BATTERY/2.55)
             device["status"] = instance.get_status()
             device["last_seen"] = time.strftime("%Y-%m-%d %H:%M:%S")
             self.db_manager.update_device_in_db(device)
