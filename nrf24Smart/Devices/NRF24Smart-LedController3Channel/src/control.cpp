@@ -36,7 +36,7 @@ void setOutput()
 
     if (channelTotal == 0)
     {
-        Serial.println("channelTotal is 0!");
+        Serial.println(F("channelTotal is 0!"));
         disableOutput();
         return;
     }
@@ -147,7 +147,7 @@ void setStatus(const uint8_t *data, uint8_t length)
     // Null data check
     if (data == nullptr)
     {
-        Serial.println("ERROR: Null data pointer in setStatus!");
+        Serial.println(F("ERROR: Null data pointer in setStatus!"));
         return;
     }
 
@@ -160,7 +160,7 @@ void setStatus(const uint8_t *data, uint8_t length)
     // Check if newValue is not null before dereferencing
     if (msg.newValue == nullptr)
     {
-        Serial.println("ERROR: Null newValue pointer!");
+        Serial.println(F("ERROR: Null newValue pointer!"));
         return;
     }
 
@@ -177,7 +177,7 @@ void setStatus(const uint8_t *data, uint8_t length)
         }
         else
         {
-            Serial.println("ERROR: Unsupported setType for POWER!");
+            Serial.println(F("ERROR: Unsupported setType for POWER!"));
         }
         break;
     case 1: // BRIGHTNESS
@@ -195,7 +195,7 @@ void setStatus(const uint8_t *data, uint8_t length)
         }
         else
         {
-            Serial.println("ERROR: Unsupported setType for BRIGHTNESS!");
+            Serial.println(F("ERROR: Unsupported setType for BRIGHTNESS!"));
         }
         break;
     case 2: // CH_1
@@ -215,7 +215,7 @@ void setStatus(const uint8_t *data, uint8_t length)
         }
         else
         {
-            Serial.print("ERROR: Unsupported setType for Channel ");
+            Serial.print(F("ERROR: Unsupported setType for Channel "));
             Serial.println(msg.varIndex - 2);
         }
         break;
@@ -228,12 +228,12 @@ void setStatus(const uint8_t *data, uint8_t length)
             }
             else
             {
-                Serial.println("ERROR: Incompatible valueSize for RGB!");
+                Serial.println(F("ERROR: Incompatible valueSize for RGB!"));
             }
         }
         else
         {
-            Serial.println("ERROR: Unsupported setType for RGB!");
+            Serial.println(F("ERROR: Unsupported setType for RGB!"));
         }
         break;
     case 6: // OUTPUT_POWER
@@ -246,12 +246,12 @@ void setStatus(const uint8_t *data, uint8_t length)
             }
             else
             {
-                Serial.println("ERROR: Incompatible valueSize for OutputPowerLimit!");
+                Serial.println(F("ERROR: Incompatible valueSize for OutputPowerLimit!"));
             }
         }
         else
         {
-            Serial.println("ERROR: Unsupported setType for OutputPowerLimit!");
+            Serial.println(F("ERROR: Unsupported setType for OutputPowerLimit!"));
         }
         break;
     case 7: // STATUS_INTERVAL
@@ -261,12 +261,12 @@ void setStatus(const uint8_t *data, uint8_t length)
         }
         else
         {
-            Serial.println("ERROR: Unsupported setType for StatusInterval!");
+            Serial.println(F("ERROR: Unsupported setType for StatusInterval!"));
         }
         break;
     default:
     {
-        Serial.println("ERROR: Unsupported changeType!");
+        Serial.println(F("ERROR: Unsupported changeType!"));
     }
     }
     setOutput();
@@ -282,12 +282,19 @@ void setRemote(const uint8_t layer, const uint8_t value)
             setPower(!status.power);
             break;
         case 1:
-            for(int i = 0; i < NUM_LED_CHANNELS; i++){
+            for (int i = 0; i < NUM_LED_CHANNELS; i++)
+            {
                 setChannel(i, 255);
             }
             break;
+        case 2:
+            setPower(true);
+            break;
+        case 3:
+            setPower(false);
+            break;
         default:
-            Serial.print("Unsupported Remote Buton: ");
+            Serial.print(F("Unsupported Remote Buton: "));
             Serial.println(value);
         }
     }
@@ -303,7 +310,7 @@ void setRemote(const uint8_t layer, const uint8_t value)
         }
         else
         {
-            Serial.print("Unsupported AXIS1 Direction: ");
+            Serial.print(F("Unsupported AXIS1 Direction: "));
             Serial.println(value);
         }
     }
@@ -321,7 +328,7 @@ void setRemote(const uint8_t layer, const uint8_t value)
         }
         else
         {
-            Serial.print("Unsupported AXIS2 Direction: ");
+            Serial.print(F("Unsupported AXIS2 Direction: "));
             Serial.println(value);
         }
     }

@@ -4,28 +4,24 @@
 #include "util.h"
 #include "control.h"
 
-void (*resetFunc)(void) = 0;
 volatile bool btnPressed = false;
-
-ISR(PCINT1_vect)
-{
-  btnPressed = !digitalRead(PIN_BTN_RST);
-}
 
 void setPinModes()
 {
   pinMode(PIN_LED1, OUTPUT);
   pinMode(PIN_LED2, OUTPUT);
+  pinMode(PIN_RST, INPUT_PULLUP);
+  pinMode(PIN_LISTEN, INPUT_PULLUP);
+  pinMode(PIN_BTN1_UP, INPUT_PULLUP);
+  pinMode(PIN_BTN1_DN, INPUT_PULLUP);
 
-  pinMode(PIN_BTN_RST, INPUT_PULLUP);
-  pinMode(PIN_BTN_ENC, INPUT_PULLUP);
-  pinMode(PIN_ROTARY1, INPUT_PULLUP);
-  pinMode(PIN_ROTARY2, INPUT_PULLUP);
-  pinMode(PIN_BTN_LISTEN, INPUT_PULLUP);
+  // Enable interrupt on pins 5 and 6 (BTN1_UP and BTN1_DN)
+  PCICR |= (1 << PCIE2);                     // Enable Pin Change Interrupts on PORTD
+  PCMSK2 |= (1 << PCINT21) | (1 << PCINT22); // Enable Pin Change ISR for PD5 and PD6
 
-  // Enable interrupt on PIN_BTN1
-  PCICR |= (1 << PCIE1);   // Aktivate Interrupts on Port C (analog)
-  PCMSK1 |= (1 << PCINT4); // Aktivate Pin Change ISR for A4
+  // Enable Pin Change Interrupts on PORTC (for pins A3 and A0)
+  PCICR |= (1 << PCIE1);
+  PCMSK1 |= (1 << PCINT11) | (1 << PCINT8);
 }
 
 void setup()
@@ -40,9 +36,9 @@ void setup()
   digitalWrite(PIN_LED2, HIGH);
   connectToServer();
   loadStatusFromEEPROM();
+  readSensor();
   sendStatus();
   printEEPROM(12);
-  setupEncoder();
   delay(500);
 
   // pin change interrupt (example for D4 and D5)
@@ -56,35 +52,31 @@ void setup()
 
 void loop()
 {
-  checkForSleep();
-  
-  // Check for reset button
-  if (btnPressed)
+  // Check for reset
+  if (digitalRead(PIN_RST) == LOW)
   {
-    btnPressed = false;
     resetEEPROM();
     delay(1000);
   }
 
-  if (!serverConnected)
-  {
-    Serial.println(F("Connecting to Server:"));
-    connectToServer();
-  }
-
-  // Listen for packets while Listen Button pressed
-  if (digitalRead(PIN_BTN_LISTEN) == LOW)
+  // Check for Reprogram
+  if (digitalRead(PIN_LISTEN) == LOW)
   {
     digitalWrite(PIN_LED1, LOW);
-    checkForSleep(); // Wake Up Radio
-    sendStatus();
-    while (digitalRead(PIN_BTN_LISTEN) == LOW)
+    while (digitalRead(PIN_LISTEN) == LOW)
     {
       listenForPackets();
     }
     digitalWrite(PIN_LED1, HIGH);
   }
 
-  readEncoder();
+  checkForSleep();
+  readButtons();
   sendEvents();
+
+  if (!serverConnected)
+  {
+    Serial.println(F("Connecting to Server:"));
+    connectToServer();
+  }
 }
