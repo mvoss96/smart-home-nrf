@@ -27,6 +27,7 @@ uint8_t statusInterval = STATUS_INTERVAL_TIME;
 volatile bool sleeping = false;
 volatile unsigned wakeupcouter = 0;
 volatile bool wakeupByInterrupt = false;
+bool statusSend = false;
 
 AHTxx aht20(AHTXX_ADDRESS_X38, AHT2x_SENSOR); // sensor address, sensor type
 
@@ -42,8 +43,9 @@ ISR(PCINT2_vect)
 }
 
 // ISR for PORTC (covers A3 and A0)
-ISR(PCINT1_vect) {
-  // Your ISR code for A3 and A0
+ISR(PCINT1_vect)
+{
+    // Your ISR code for A3 and A0
 }
 
 void setStatus(const uint8_t *data, uint8_t length)
@@ -118,11 +120,14 @@ void checkForSleep()
 {
     if (millis() - globalTimer > SLEEP_AFTER_MS)
     {
+        digitalWrite(PIN_LED2, HIGH);
         goToSleep();
+        digitalWrite(PIN_LED2, LOW);
 
         if (!sleeping)
         {
             Serial.println(F("woken up!"));
+            statusSend = false;
             readButtons();
             return;
         }
@@ -221,7 +226,11 @@ void sendEvents()
                 break;
             }
         }
-        //readSensor();
-        sendStatus();
+        // readSensor();
+        if (!statusSend)
+        {
+            sendStatus();
+            statusSend = true;
+        }
     }
 }

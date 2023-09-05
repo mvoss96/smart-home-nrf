@@ -20,12 +20,26 @@ public:
     {
         if (pckSize < 14)
         {
-            Serial.println(F("Too small pckSize"));
+            Serial.print(F("Too small pckSize: "));
+            Serial.println(pckSize);
+            for (int i = 0; i < pckSize; i++)
+            {
+                Serial.print(pckData[i]);
+                Serial.print(" ");
+            }
+            Serial.println();
             return;
         }
         if (pckSize > 32)
         {
-            Serial.println(F("Too large pckSize"));
+            Serial.print(F("Too large pckSize: "));
+            Serial.println(pckSize);
+            for (int i = 0; i < pckSize; i++)
+            {
+                Serial.print(pckData[i]);
+                Serial.print(" ");
+            }
+            Serial.println();
             return;
         }
 

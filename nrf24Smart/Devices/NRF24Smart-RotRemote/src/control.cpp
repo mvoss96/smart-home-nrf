@@ -226,6 +226,7 @@ void checkForSleep()
         sendStatus();
         delay(10);
         _radio.powerDown();
+        Serial.flush();
         LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
 
         Serial.println(F("woken up!"));

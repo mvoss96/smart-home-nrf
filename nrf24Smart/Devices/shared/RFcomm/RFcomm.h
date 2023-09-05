@@ -24,6 +24,7 @@ void saveToEEPROM();
 void printEEPROM(int n = 0);
 void loadFromEEPROM();
 void loadStatusFromEEPROM();
+void radioInterrupt();
 
 inline void sendStatus()
 {

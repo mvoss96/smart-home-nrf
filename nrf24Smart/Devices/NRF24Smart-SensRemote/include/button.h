@@ -14,12 +14,13 @@ class Button
 private:
     int pin;
     bool lastState;
+    bool clickStart;
     bool longPressStart;
     unsigned long lastLow;
     unsigned long lastLongPressActive;
 
 public:
-    Button(int p) : pin(p), lastState(HIGH), longPressStart(false), lastLow(0), lastLongPressActive(0) {}
+    Button(int p) : pin(p), lastState(HIGH), clickStart(false), longPressStart(false), lastLow(0), lastLongPressActive(0) {}
 
     BTN_ACTIONS read()
     {
@@ -29,6 +30,7 @@ public:
         if (currentState == LOW && lastState == HIGH)
         {
             lastLow = millis();
+            clickStart = true;
         }
         // Click
         else if (currentState == HIGH && lastState == LOW)
@@ -36,15 +38,20 @@ public:
             unsigned long lastHigh = millis();
             if (lastHigh - lastLow > DEBOUNCE_TIME_MS)
             {
-                if (lastHigh - lastLow < LONG_PRESS_INTERVAL_MS)
+                if (lastHigh - lastLow < LONG_PRESS_INTERVAL_MS && clickStart)
                 {
                     event = BTN_CLICK;
                 }
-                longPressStart = false;
             }
+            else
+            {
+                Serial.println("Debounce");
+            }
+            longPressStart = false;
+            clickStart = false;
         }
         // Long Press
-        else if (currentState == LOW && lastState == LOW && millis() - lastLongPressActive > LONG_PRESS_INTERVAL_MS)
+        else if (clickStart == true && currentState == LOW && lastState == LOW && millis() - lastLongPressActive > LONG_PRESS_INTERVAL_MS)
         {
             if (longPressStart)
             {

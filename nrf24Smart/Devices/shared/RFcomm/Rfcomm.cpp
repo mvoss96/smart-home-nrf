@@ -9,6 +9,7 @@ uint8_t serverUUID[4];
 bool serverConnected = false;
 NRFLite _radio;
 unsigned long statusTimer = 0;
+volatile uint8_t _dataWasReceived;
 
 uint8_t ClientPacket::msgNum = 0;
 
@@ -54,9 +55,12 @@ uint8_t nrfSend(uint8_t toRadioId, void *data, uint8_t length, NRFLite::SendType
         {
             break;
         }
-        Serial.print(F("Retrying send... "));
+        Serial.print(F(" ... "));
         delay(200);
     }
+#ifdef NRF_USE_IRQ
+    _radio.startRx();
+#endif
     return res;
 }
 
@@ -202,13 +206,40 @@ bool checkUUID(ServerPacket pck)
     return true;
 }
 
+void radioInterrupt()
+{
+    // Ask the radio what caused the interrupt.  This also resets the IRQ pin on the
+    // radio so a new interrupt can be triggered.
+
+    uint8_t txOk, txFail, rxReady;
+    _radio.whatHappened(txOk, txFail, rxReady);
+
+    // txOk = the radio successfully transmitted data.
+    // txFail = the radio failed to transmit data.
+    // rxReady = the radio received data.
+
+    if (rxReady)
+    {
+        _dataWasReceived = true;
+    }
+}
+
 void listenForPackets()
 {
     // Listen for new Messages
-    uint8_t packetSize = _radio.hasData();
     uint8_t buf[32] = {0};
+
+#ifdef NRF_USE_IRQ
+    if (_dataWasReceived)
+    {
+        uint8_t packetSize = _radio.hasDataISR();
+        _dataWasReceived = false;
+#else
+    uint8_t packetSize = _radio.hasData();
     if (packetSize > 0)
     {
+#endif
+
         _radio.readData(&buf);
 
 #ifdef ALLOW_REMOTE

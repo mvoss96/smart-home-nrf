@@ -11,7 +11,7 @@
 #define DEVICE_UUID                                     {0xD2, 0xF3, 0xB5, 0x12}    // Unique 4 byte UUID
 #define LED_BLINK_ONMESSAGE                             0                           // 1 for enable, 0 for disable
 #define STATUS_INTERVAL_TIME                            0                           // Not Supported
-#define NUM_SEND_RETRIES                                2                           // Must be >= 1
+#define NUM_SEND_RETRIES                                5                           // Must be >= 1
 #define FIRMWARE_VERSION                                0x01
 #define RADIO_CHANNEL                                   101
 #define INITIAL_RADIO_ID                                255
@@ -28,7 +28,7 @@
 #define PIN_BTN1_DN                                     5
 
 #define SLEEP_AFTER_MS                                  750
-#define DEBOUNCE_TIME_MS                                40
+#define DEBOUNCE_TIME_MS                                20
 #define LONG_PRESS_INTERVAL_MS                          400
 #define LONG_PRESS_MS                                   1000
 #define DOUBLE_LONG_PRESS_MS                            2000

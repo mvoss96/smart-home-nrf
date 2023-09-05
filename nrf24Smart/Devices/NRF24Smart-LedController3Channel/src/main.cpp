@@ -48,7 +48,7 @@ void setPinModes()
 void setup()
 {
   Serial.begin(115200);
-  //printGreetingMessage();
+  printGreetingMessage();
   Serial.println(readVcc());
   Serial.println(batteryLevel());
   setPinModes();
@@ -58,6 +58,10 @@ void setup()
   connectToServer();
   printEEPROM(5);
   delay(1000);
+#ifdef NRF_USE_IRQ
+  attachInterrupt(digitalPinToInterrupt(PIN_RADIO_IRQ), radioInterrupt, FALLING);
+#endif
+  setOutput();
 }
 
 void loop()
@@ -76,5 +80,4 @@ void loop()
     connectToServer();
   }
   listenForPackets();
-  setOutput();
 }
