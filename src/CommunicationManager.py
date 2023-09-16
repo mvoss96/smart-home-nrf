@@ -58,13 +58,13 @@ class CommunicationManager:
         # Check if device_id is in msg_nums
         if uuid_string not in self.msg_nums:
             # If uuid_string is not in msg_nums, initialize it
-            print(f"initialize id {uuid_string}")
+            logger.debug(f"initialize id {uuid_string}")
             self.msg_nums[uuid_string] = deque(maxlen=self.max_msg_num_length)
             self.msg_nums[uuid_string].append(msg_num)
 
         # If msg_num either cycles back to 0 or the device resets, reset the list
         elif msg_num == 0 or msg_num < max(self.msg_nums[uuid_string]):
-            print("reset list")
+            logger.debug("reset list")
             self.msg_nums[uuid_string].clear()
             self.msg_nums[uuid_string].append(0)
 
@@ -254,7 +254,7 @@ class CommunicationManager:
         """
         Get a parameter for the device
         """
-        logger.info(f"get {uuid} parameter: {parameter}")
+        logger.debug(f"get {uuid} parameter: {parameter}")
         if (device := self.db_manager.search_device_in_db(uuid)) is None:
             logger.error(f"Device with uuid:{uuid} not in DB!")
             return None

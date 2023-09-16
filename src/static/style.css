@@ -48,6 +48,10 @@ td ul {
     font-size: 12px;
 }
 
+.error-message {
+    color: red;
+  }
+
 /* Updated styles for the login form */
 #loginForm {
     background-color: #f1f1f1;
@@ -81,4 +85,45 @@ td ul {
 
 #loginForm input[type="submit"]:hover {
     background-color: #45a049;
+}
+
+#log-container {
+    display: none;
+}
+
+#logs {
+    height: 400px;
+    /* Set a fixed height */
+    overflow-y: scroll;
+    overflow-x: scroll;
+    white-space: nowrap;
+    /* Make it scrollable */
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin: 10px;
+    font-family: monospace;
+}
+
+.log-entry {
+    margin: 5px 0;
+}
+
+.log-timestamp {
+    color: #888;
+}
+
+.log-severity {
+    font-weight: bold;
+}
+
+.log-info {
+    color: green;
+}
+
+.log-error {
+    color: red;
+}
+
+.log-warning{
+    color: orange;
 }

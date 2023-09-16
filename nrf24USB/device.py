@@ -31,9 +31,14 @@ class NRF24Device:
         self.address = address
         self.stop_event = threading.Event()  # Create an event to signal the thread to stop
         self.msg_queue = queue.Queue()  # Create a new queue
-        self.serial_port = serial.Serial(port, baudrate, timeout=None)
-        self.read_thread = None
-        self.reader = PacketReader(self.serial_port)
+        self.error = False
+        try:
+            self.serial_port = serial.Serial(port, baudrate, timeout=None)
+            self.read_thread = None
+            self.reader = PacketReader(self.serial_port) 
+        except Exception as err:
+            logging.error(f"Could not connect to Serial Device {port}:{baudrate}")
+            self.error = True
 
     def start_read_loop(self):
         """
@@ -50,7 +55,7 @@ class NRF24Device:
         does not send correct INIT message or does not react correctly to Host INIT message.
         """
         logging.info(f"Initialize NRF24USB Device with channel: {self.channel} address: {self.address} ...")
-
+        
         # Try to Read the INIT message of the device
         (type, data) = self.reader.wait_for_packet(timeout=2.0)
         if type != PACKET_TYPES.INIT or data == None or len(data) != 5:
@@ -93,6 +98,14 @@ class NRF24Device:
         Sends message to the destination. Takes destination, list of integers as data, and acknowledgement requirement as arguments.
         Returns received data on successful acknowledgement or None otherwise.
         """
+
+        # Make sure nrf24USB is connected
+        if not self.connected:
+            logging.warning("Waiting with send_msg while nrfDevice is not connected")
+            while not self.connected:
+                time.sleep(1)
+
+
         raw_msg_hex = [hex(i) for i in data]
         with self.lock:
             print(f"send to id:{destination} {raw_msg_hex}")
@@ -101,7 +114,11 @@ class NRF24Device:
             if not require_ack:
                 return []
             for _ in range(5):
-                (recv_type, recv_data) = self.reader.wait_for_packet(timeout=0.5)
+                try:
+                    (recv_type, recv_data) = self.reader.wait_for_packet(timeout=0.5)
+                except TimeoutError:
+                    logging.error(f"Timeout while waiting for response from send_msg")
+                    return None
                 if recv_type is PACKET_TYPES.OK:
                     return recv_data
                 elif recv_type is PACKET_TYPES.ERROR:
@@ -163,6 +180,7 @@ class NRF24Device:
                         self.handle_packet(packet_type, packet_data)
         except Exception as e:
             logging.exception(f"An exception occured during readLoop: {e}")
+            self.connected = False
 
         logging.info("NRF24USB Read Loop Stopped!")
 
@@ -180,5 +198,8 @@ class NRF24Device:
         """
         Stops the read loop and closes the serial port when the instance is destructed.
         """
-        self.stop_read_loop()
-        self.serial_port.close()
+        try:
+            self.stop_read_loop()
+            self.serial_port.close()
+        except AttributeError:
+            pass
