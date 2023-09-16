@@ -154,6 +154,7 @@ void setStatus(const uint8_t *data, uint8_t length)
     SetMessage msg(data, length);
     if (!msg.isValid)
     {
+        Serial.println(F("Set Message not valid!"));
         return;
     }
 
@@ -332,4 +333,5 @@ void setRemote(const uint8_t layer, const uint8_t value)
             Serial.println(value);
         }
     }
+    setOutput();
 }
