@@ -13,7 +13,7 @@ class RotatingQueue(queue.Queue):
         super(RotatingQueue, self).put(item, block, timeout)
 
 
-log_queue = RotatingQueue()
+log_queue = RotatingQueue(5000)
 
 
 # Create a custom JSON Formatter
@@ -55,7 +55,7 @@ def setup_logger():
 
     # Create queue handler
     queue_handler = QueueHandler(log_queue)
-    queue_handler.setLevel(logging.INFO)
+    queue_handler.setLevel(logging.WARNING)
     queue_handler.addFilter(IgnoreFlaskLogs())
 
     # Define log colors

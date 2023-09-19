@@ -181,7 +181,8 @@ async function fetchLogs() {
 function applyFilter(logs) {
     const selectedSeverity = document.getElementById('severityFilter').value;
     if (selectedSeverity === "warnings") {
-        return logs.filter(log => log.severity.toLowerCase() === "warning" || log.severity.toLowerCase() === "error" || log.severity.toLowerCase() === "critical");
+        return logs.filter(log => log.severity.toLowerCase() === "warning" || log.severity.toLowerCase() === "error" ||
+            log.severity.toLowerCase() === "critical" || log.severity.toLowerCase() === "exception");
     }
     return logs; // Return unfiltered logs if no filter is selected
 }

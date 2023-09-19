@@ -158,6 +158,13 @@ class CommunicationManager:
                 if not msg.is_valid:
                     logger.warning(f"invalid message! {msg.raw_data}")
                     continue
+                
+                uuid_string = str(msg.UUID)
+                if uuid_string in self.msg_nums and  msg.MSG_NUM == self.msg_nums[uuid_string][-1]:
+                    logger.warning(f"Ignore msg with repeated msg_num {msg.MSG_NUM} for {uuid_string}")
+                    continue
+
+                self.update_connection_health(msg.UUID, msg.MSG_NUM)
                 if msg.MSG_TYPE == MSG_TYPES.INIT.value:
                     self.handle_init_mesage(msg)
                 elif msg.MSG_TYPE == MSG_TYPES.BOOT.value:
@@ -166,7 +173,7 @@ class CommunicationManager:
                     self.handle_status_message(msg)
                 else:
                     logger.info(f"-> {msg}")
-                self.update_connection_health(msg.UUID, msg.MSG_NUM)
+                
 
             time.sleep(0.01)
         logger.info("Stopped listen")
