@@ -10,15 +10,19 @@ logger = setup_logger()
 
 class DeviceManager:
     def __init__(self, db_manager: DBManager):
-        # Initializing the NRF24Device
-        self.device = NRF24Device("/dev/NRF24USB", channel=101, address=0)
-        #self.device = NRF24Device("COM3", channel=101, address=0)
-
         # Initialize the lock
         self.comm_lock = Lock()
 
         # Reference to the DBManager instance to handle DB operations
         self.db_manager = db_manager
+
+        # Initializing the NRF24Device
+        #self.device = NRF24Device("/dev/NRF24USB", channel=101, address=0)
+        #self.device = NRF24Device("COM3", channel=101, address=0)
+        self.device = NRF24Device("/dev/ttyUSB0", channel=101, address=0)
+        if self.device.error:
+            raise ConnectionError("Error with the NRF24USB device")
+
 
     def start(self):
         self.device.start_read_loop()

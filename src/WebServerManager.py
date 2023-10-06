@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template, request, Response
+from flask import Flask, jsonify, render_template, request, make_response, Response
 from flask_cors import CORS
 from flask_httpauth import HTTPBasicAuth
 from threading import Thread
@@ -6,9 +6,11 @@ from src.DBManager import DBManager
 from src.CommunicationManager import CommunicationManager
 import json
 import time
-from src.Logger import setup_logger
+import gzip
+from src.Logger import setup_logger, log_queue
 
 logger = setup_logger()
+
 
 class WebServerManager:
     def __init__(self, db_manager: DBManager, comm_manager: CommunicationManager):
@@ -35,7 +37,7 @@ class WebServerManager:
         # Define routes
         @self.auth.verify_password
         def verify_password(username, password):
-            #print(f"user:{username} pw:{password}")
+            # print(f"user:{username} pw:{password}")
             return self.db_manager.check_http_password(password)
 
         @self.app.route("/", methods=["GET"])
@@ -61,6 +63,35 @@ class WebServerManager:
 
             logger.info("Received a request for /stream endpoint")
             return Response(generate(), mimetype="text/event-stream")
+
+        @self.app.route("/logs", methods=["GET"])
+        @self.auth.login_required
+        def get_logs():
+            """
+            Endpoint to get log Messages.
+            """
+            log_list = []
+            temp = list(log_queue.queue)
+            
+            for record in temp:
+                # Assuming your JSON formatter returns a JSON string as the log message
+                log_entry_json = record.getMessage()  
+                
+                # Convert the JSON string to a Python dictionary
+                log_entry_dict = json.loads(log_entry_json)
+                
+                log_list.append(log_entry_dict)
+            
+            content = json.dumps(log_list)
+            compressed_content = gzip.compress(bytes(content, 'utf-8'))
+
+            response = make_response(compressed_content)
+            response.headers['Content-Encoding'] = 'gzip'
+            response.headers['Content-Length'] = str(len(compressed_content))
+            response.headers['Content-Type'] = 'text/plain'
+
+            return response
+
 
         @self.app.route("/devices", methods=["GET"])
         @self.auth.login_required
@@ -130,9 +161,9 @@ class WebServerManager:
                 return Response(status=400, response="Device does not have a status")
             if parameter == "status":
                 return jsonify(status), 200
-            if (value:=self.comm_manager.get_device_param(uuid, parameter))!= None:
+            if (value := self.comm_manager.get_device_param(uuid, parameter)) != None:
                 return jsonify(value), 200
-            else: 
+            else:
                 return Response(status=400, response="Unsupported parameter")
 
         @self.app.route("/devices/<device_uuid>/<parameter>", methods=["PUT"])
@@ -155,7 +186,7 @@ class WebServerManager:
             if not self.comm_manager.set_device_param(uuid, parameter, str(new_val)):
                 return Response(status=400, response="Unable to parse request")
             return Response()
-    
+
     def parse_uuid(self, device_uuid):
         try:
             uuid = [int(x) for x in device_uuid.split("-")]

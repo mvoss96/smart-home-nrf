@@ -14,7 +14,7 @@ logger = setup_logger()
 class SmartHome:
     def __init__(self):
         # Initialize the Managers
-        logger.info("NRF-Smart-Home started")
+        logger.critical("NRF-Smart-Home started")
         self.shutdown_flag = threading.Event()
         self.db_manager = DBManager()
         self.device_manager = DeviceManager(self.db_manager)

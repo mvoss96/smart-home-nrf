@@ -8,6 +8,7 @@
 </head>
 
 <body>
+    <div id="error-message" class="error-message"></div>
     <h1>Smart Home Devices</h1>
     <form id="loginForm">
         <label for="password">Password:</label><br>
@@ -31,6 +32,16 @@
                 <!-- Devices will be dynamically inserted here -->
             </tbody>
         </table>
+        <div id=log-container>
+            <h2>Logs</h2>
+            <select id="severityFilter">
+                <option value="warnings">warning</option>
+                <option value="all">All</option>
+            </select>
+            <div id="logs">
+                <!-- Logs will be dynamically inserted here -->
+            </div>
+        </div>
     </div>
 </body>
 
