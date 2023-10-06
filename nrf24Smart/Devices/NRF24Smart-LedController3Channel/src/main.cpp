@@ -3,6 +3,7 @@
 #include "blink.h"
 #include "power.h"
 #include "control.h"
+#include "util.h"
 
 void (*resetFunc)(void) = 0;
 volatile bool btnPressed = false;
@@ -10,22 +11,6 @@ volatile bool btnPressed = false;
 ISR(PCINT1_vect)
 {
   btnPressed = !digitalRead(PIN_BTN1);
-}
-
-void printGreetingMessage()
-{
-  static const uint8_t uuid[] = DEVICE_UUID;
-  Serial.print(DEVICE_TYPE);
-  Serial.print(" [");
-  for (size_t i = 0; i < 4; i++)
-  {
-    Serial.print(uuid[i], HEX);
-    if (i < 3)
-    {
-      Serial.print(" ");
-    }
-  }
-  Serial.println("] ");
 }
 
 void setPinModes()
@@ -72,12 +57,9 @@ void loop()
     btnPressed = false;
     resetEEPROM();
     delay(1000);
-  }
-
-  if (!serverConnected)
-  {
     Serial.println(F("Connecting to Server:"));
     connectToServer();
   }
+
   listenForPackets();
 }

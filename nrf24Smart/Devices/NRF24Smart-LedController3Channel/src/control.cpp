@@ -295,7 +295,7 @@ void setRemote(const uint8_t layer, const uint8_t value)
             setPower(false);
             break;
         default:
-            Serial.print(F("Unsupported Remote Buton: "));
+            Serial.print(F("Unsupported Remote Button: "));
             Serial.println(value);
         }
     }

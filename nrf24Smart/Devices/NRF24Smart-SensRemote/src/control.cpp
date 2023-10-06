@@ -192,6 +192,7 @@ void readSensor()
     if (ahtValue == AHTXX_ERROR)              // AHTXX_ERROR = 255, library returns 255 if error occurs
     {
         Serial.println("AHT-Sensor Error!");
+        return;
     }
     status.temperature = ahtValue;
     status.humidity = aht20.readHumidity(AHTXX_USE_READ_DATA); // use 6-bytes from temperature reading, takes zero milliseconds

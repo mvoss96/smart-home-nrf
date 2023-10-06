@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 
-inline void printGreetingMessage()
+void printGreetingMessage()
 {
   static const uint8_t uuid[] = DEVICE_UUID;
   Serial.print(DEVICE_TYPE);
