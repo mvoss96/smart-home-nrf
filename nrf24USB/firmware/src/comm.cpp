@@ -27,13 +27,23 @@ void waitForHost()
         }
         delay(100); // Short delay to let the host read the message
         int packetSize = readDataFromSerial(buffer, BUFFER_SIZE);
-        if (packetSize == 2) // Check if a correct packet was successfully received
+        if (packetSize >= 2) // Check if a correct packet was successfully received
         {
             MSG_TYPES receivedType = static_cast<MSG_TYPES>(buffer[0]); // Extract the packet type
             if (receivedType == MSG_TYPES::INIT)                        // Check if the packet type is INIT
             {
                 uint8_t channel = buffer[1]; // Byte at position 1 is first data byte since byte 0 is msg_type
                 uint8_t address = buffer[2];
+
+                if (packetSize >= 3)
+                {
+                    clearTextMode = buffer[3];
+                }
+                if (packetSize >= 4)
+                {
+                    blinkOnMessage = buffer[4];
+                }
+
                 if (!testConnection(channel, address))
                 {
                     for (;;)
@@ -57,8 +67,8 @@ void checkForSerialMsg()
     if (packetSize >= 0)
     {
         MSG_TYPES receivedType = static_cast<MSG_TYPES>(buffer[0]); // Extract the packet type
-        uint8_t* data = buffer + 1;
-       
+        uint8_t *data = buffer + 1;
+
         if (receivedType == MSG_TYPES::REBOOT)
         {
             sendStringMessage("REBOOT...", MSG_TYPES::REBOOT);
@@ -67,7 +77,7 @@ void checkForSerialMsg()
         }
         else if (receivedType == MSG_TYPES::SETTING && packetSize >= 1)
         {
-            blinkOnMessage = data[0]; 
+            blinkOnMessage = data[0];
         }
         else if (receivedType == MSG_TYPES::MSG && packetSize >= 3)
         {
@@ -206,8 +216,7 @@ void sendStringMessage(const char *message, MSG_TYPES type)
 void sendInitMessage()
 {
     uint8_t message[5] = {FIRMWARE_VERSION, UUID[0], UUID[1], UUID[2], UUID[3]};
-    sendPacketBS((uint8_t *)message, 5, MSG_TYPES::INIT);
-    sendPacketClear((uint8_t *)message, 5, MSG_TYPES::INIT);
+    sendPacket((uint8_t *)message, 5, MSG_TYPES::INIT);
 }
 
 /**
