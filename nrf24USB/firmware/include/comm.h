@@ -1,6 +1,8 @@
 #pragma once
 #include "pins.h"
 
+void waitForHost();
+void checkForSerialMsg();
 bool testConnection(uint8_t channel, uint8_t address);
 void sendStringMessage(const char *message, MSG_TYPES type);
 void sendInitMessage();

@@ -120,23 +120,28 @@ void checkForSleep()
 {
     if (millis() - globalTimer > SLEEP_AFTER_MS)
     {
-        digitalWrite(PIN_LED2, HIGH);
-        goToSleep();
-        digitalWrite(PIN_LED2, LOW);
+        while (true)
+        {
+            digitalWrite(PIN_LED2, HIGH);
+            goToSleep();
 
-        if (!sleeping)
-        {
-            Serial.println(F("woken up!"));
-            statusSend = false;
-            readButtons();
-            return;
-        }
-        wakeupcouter++;
-        if (wakeupcouter >= NUM_WAKEUP_FOR_STATUS && !wakeupByInterrupt)
-        {
-            readSensor();
-            sendStatus();
-            wakeupcouter = 0;
+            // Now we have woken up from sleep ...
+            digitalWrite(PIN_LED2, LOW);
+            if (!sleeping)
+            {
+                Serial.println(F("woken up by interrupt!"));
+                statusSend = false;
+                readButtons();
+                return;
+            }
+            wakeupcouter++;
+            if (wakeupcouter >= NUM_WAKEUP_FOR_STATUS && !wakeupByInterrupt)
+            {
+                readSensor();
+                sendStatus();
+                wakeupcouter = 0;
+                return;
+            }
         }
     }
 }

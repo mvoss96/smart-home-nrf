@@ -20,14 +20,14 @@ void blinkCode(uint8_t blink_pattern)
   switch (blink_pattern)
   {
   case BLINK_INIT_OK:
-    blink(PIN_LED, 1, 200);
+    blink(PIN_LED1, 1, 200);
     break;
   case BLINK_INIT_ERROR:
-    blink(PIN_LED, 1, 200);
-    blink(PIN_LED, 4, 100);
+    blink(PIN_LED1, 1, 200);
+    blink(PIN_LED1, 4, 100);
     break;
   case BLINK_ONCE:
-    blink(PIN_LED, 1, 50);
+    blink(PIN_LED1, 1, 50);
     break;
   default:
     break;
