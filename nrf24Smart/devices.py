@@ -7,6 +7,7 @@ from nrf24Smart import SetMessage, CHANGE_TYPES
 class DeviceStatus:
     settable_parameters = []
     supported_versions = []
+    mqtt_discovery_paramters = []
 
     def __init__(self, data: list[int]):
         raise NotImplementedError()

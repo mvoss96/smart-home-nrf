@@ -52,6 +52,7 @@ def setup_logger():
     # Create a console handler
     console_handler = logging.StreamHandler(None)
     console_handler.setLevel(logging.INFO)
+    console_handler.addFilter(IgnoreFlaskLogs())
 
     # Create queue handler
     queue_handler = QueueHandler(log_queue)

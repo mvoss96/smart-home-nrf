@@ -1,4 +1,4 @@
-from nrf24Smart import DeviceMessage, HostMessage, MSG_TYPES
+from nrf24Smart import DeviceMessage, HostMessage, RemoteMessage, MSG_TYPES
 import time
 from datetime import datetime
 from src.DeviceManager import DeviceManager
@@ -6,6 +6,7 @@ from src.Logger import setup_logger
 from threading import Event
 from typing import Optional
 from collections import deque
+import queue
 
 logger = setup_logger()
 
@@ -30,7 +31,11 @@ class CommunicationManager:
         self.max_msg_num_length = 20
         self.msg_nums = {}
 
+        # Devices where we are waiting for an ack message
         self.wait_for_status = set()
+
+        # Queque to notify the mqttManager about events
+        self.event_queue = queue.Queue()
 
     def calc_missing(self, lst) -> int:
         # Create a complete set from the smallest to the largest number in the list
@@ -52,7 +57,7 @@ class CommunicationManager:
         # Return early if device not in db
         if self.db_manager.search_device_in_db(uuid) is None:
             return
-
+        
         uuid_string = str(uuid)
 
         # Check if device_id is in msg_nums
@@ -80,39 +85,54 @@ class CommunicationManager:
         connection_health = 1 - num_missing / (len(self.msg_nums[uuid_string]) + num_missing)
         self.db_manager.update_connection_health(uuid, connection_health)
 
-    def handle_status_message(self, msg: DeviceMessage):
+    def check_device_message(self, msg: DeviceMessage | RemoteMessage) -> Optional[tuple]:
         """
-        Updates the status of a device given a DeviceMessage.
-        The method fetches the device from the database, checks its type and updates its status.
+        Check that the reported dvice exists and has a supported firmware
+        Returns the device and the class_obj, or None if an error occured
         """
         device = self.db_manager.search_device_in_db(msg.UUID)
         if device == None:
-            logger.error(f"Device with uuid:{msg.UUID} not in DB!")
-            return
+            logger.warning(f"Device with uuid:{msg.UUID} not in DB!")
+            return None
 
         # Check if the class exists in the supported_devices list
         class_obj = self.device_manager.get_supported_device(device["type"])
         if class_obj == None:
-            logger.error(f"Unsupported Device of type:{device['type']} in DB!")
-            return
+            logger.warning(f"Unsupported Device of type:{device['type']} in DB!")
+            return None
 
         # Check that id and uuid match the db
         if msg.ID != device.get("id"):
             logger.warning(
                 f"Mismatched ID and UUID! Device with UUID:{msg.UUID} reports ID:{msg.ID} instead of {device.get('id')}"
             )
+            return None
+
+        if isinstance(msg, DeviceMessage):
+            # Check the firmware Version
+            if msg.FIRMWARE_VERSION not in class_obj.supported_versions:
+                logger.error(
+                    f"Device with UUID {msg.UUID} reports unsupported Firmware Version {msg.FIRMWARE_VERSION}"
+                )
+            if msg.FIRMWARE_VERSION != device.get("version"):
+                logger.warning(
+                    f"Device with UUID {msg.UUID} changed Firmware Version from {device.get('version')} to {msg.FIRMWARE_VERSION}"
+                )
+
+            device["version"] = msg.FIRMWARE_VERSION
+            device["status_interval"] = msg.STATUS_INTERVAL
+        return device, class_obj
+
+    def handle_status_message(self, msg: DeviceMessage):
+        """
+        Updates the status of a device given a DeviceMessage.
+        The method fetches the device from the database, checks its type and updates its status.
+        """
+        ret = self.check_device_message(msg)
+        if ret:
+            device, class_obj = ret
+        else:
             return
-
-        # Check the firmware Version
-        if msg.FIRMWARE_VERSION not in class_obj.supported_versions:
-            logger.error(f"Device with UUID {msg.UUID} reports unsupported Firmware Version {msg.FIRMWARE_VERSION}")
-        if msg.FIRMWARE_VERSION != device.get("version"):
-            logger.warning(
-                f"Device with UUID {msg.UUID} changed Firmware Version from {device.get('version')} to {msg.FIRMWARE_VERSION}"
-            )
-
-        device["version"] = msg.FIRMWARE_VERSION
-        device["status_interval"] = msg.STATUS_INTERVAL
 
         if msg.MSG_TYPE == MSG_TYPES.OK.value and msg.ID in self.wait_for_status:
             self.wait_for_status.remove(msg.ID)
@@ -122,16 +142,30 @@ class CommunicationManager:
         try:
             instance = class_obj(msg.DATA)
             # Update the status key for the device using the device variable
-            # logger.info(f"update status for device {device.get('name')} {device.get('uuid')}")
             if device["battery_powered"]:
                 device["battery_level"] = msg.BATTERY
-                device["battery_percent"] = round(msg.BATTERY/2.55)
+                device["battery_percent"] = round(msg.BATTERY / 2.55)
             device["status"] = instance.get_status()
             device["last_seen"] = time.strftime("%Y-%m-%d %H:%M:%S")
             self.db_manager.update_device_in_db(device)
         except Exception as err:
             logger.error(err)
 
+    def handle_remote_message(self, msg: RemoteMessage):
+        """
+        Handles Remote messages address to the server. They are then forwarded to the MQTT interface
+        """
+        ret = self.check_device_message(msg)
+        if ret:
+            device, class_obj = ret
+        else:
+            return
+
+        event = "unknow"
+        if hasattr(class_obj, "get_remote_event") and callable(getattr(class_obj, "get_remote_event")):
+            event = class_obj.get_remote_event(msg.LAYER, msg.VALUE)
+        self.event_queue.put((msg.UUID, event))
+        
     def handle_boot_message(self, msg: DeviceMessage):
         """
         Checks the BOOT message from a device.
@@ -151,16 +185,28 @@ class CommunicationManager:
         If a message is available, it processes the message according to its type.
         """
         while not self.shutdown_flag.is_set():
+            time.sleep(0.01)
             data = self.device_manager.get_device_message()
-            if data:
-                # print(data)
+            if not data:
+                continue
+            if len(data) < 6:
+                logger.warning("Message from device to short")
+                continue
+
+            if data[5] == MSG_TYPES.REMOTE.value:
+                msg = RemoteMessage(data)
+                if not msg.is_valid:
+                    logger.warning(f"invalid RemoteMessage! {msg.raw_data}")
+                    continue
+                self.handle_remote_message(msg)
+            else:
                 msg = DeviceMessage(data)
                 if not msg.is_valid:
                     logger.warning(f"invalid message! {msg.raw_data}")
                     continue
-                
+
                 uuid_string = str(msg.UUID)
-                if uuid_string in self.msg_nums and  msg.MSG_NUM == self.msg_nums[uuid_string][-1]:
+                if uuid_string in self.msg_nums and msg.MSG_NUM == self.msg_nums[uuid_string][-1]:
                     logger.warning(f"Ignore msg with repeated msg_num {msg.MSG_NUM} for {uuid_string}")
                     continue
 
@@ -172,10 +218,8 @@ class CommunicationManager:
                 elif msg.MSG_TYPE in (MSG_TYPES.STATUS.value, MSG_TYPES.OK.value):
                     self.handle_status_message(msg)
                 else:
-                    logger.info(f"-> {msg}")
-                
+                    logger.warning(f"->Unknown DeviceMessage {msg}")
 
-            time.sleep(0.01)
         logger.info("Stopped listen")
 
     def update_all_devices(self):
@@ -209,7 +253,7 @@ class CommunicationManager:
                         logger.info(f"sending SET {key} {value} to device {uuid}")
                         res = self.device_manager.send_msg_to_device(id, msg.get_raw())
                         if res == None:
-                            logger.error(
+                            logger.info(
                                 f"Failed to send SET message to device:{device['type']} with uuid:{device['uuid']}!"
                             )
                             if uuid_string not in self.failed_sends:
@@ -218,11 +262,11 @@ class CommunicationManager:
                                 logger.error(
                                     f"Timeout for SET message to device:{device['type']} with uuid:{device['uuid']}!"
                                 )
-                                del(self.failed_sends[uuid_string])
+                                del self.failed_sends[uuid_string]
                                 keys_unsupported.add(key)
                         else:
                             if uuid_string in self.failed_sends:
-                                del(self.failed_sends[uuid_string])
+                                del self.failed_sends[uuid_string]
                             self.wait_for_status.add(id)
                             keys_updated.append((id, uuid_string, key, value))
                         time.sleep(0.05)
@@ -232,8 +276,7 @@ class CommunicationManager:
                         if dict_copy.get(key) == self.parameter_buffer[uuid_string].get(key):
                             print(f"Remove {dict_copy.get(key)} {self.parameter_buffer[uuid_string].get(key)}")
                             del self.parameter_buffer[uuid_string][key]
-                    #self.db_manager.update_device_in_db(device)
-                    
+                    # self.db_manager.update_device_in_db(device)
 
             time.sleep(0.2)
             for entry in keys_updated:
@@ -242,13 +285,13 @@ class CommunicationManager:
                 if device is None:
                     continue
                 # Only remove if values have not changed:
-                for i in range(3):
+                for i in range(5):
                     if value == self.parameter_buffer[uuid_string].get(key):
                         # print("wait for status from id", id)
                         if id not in self.wait_for_status:
                             # print(f"delete {key}")
                             del self.parameter_buffer[uuid_string][key]
-                            #self.db_manager.update_device_in_db(device)
+                            # self.db_manager.update_device_in_db(device)
                             keys_updated.remove(entry)
                             break
                         time.sleep(0.1)
@@ -293,3 +336,6 @@ class CommunicationManager:
             self.parameter_buffer[uuid_string] = {}
         self.parameter_buffer[uuid_string][parameter] = new_val
         return True
+    
+    def get_event(self):
+        return self.event_queue.get() if not self.event_queue.empty() else None

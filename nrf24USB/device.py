@@ -15,7 +15,7 @@ class NRF24Device:
     send packets and messages, get messages, handle packets, read loop, stop read loop and destructor.
     """
 
-    def __init__(self, port: str, channel: int, address: int, baudrate=115200):
+    def __init__(self, port: str, channel: int, address: int, baudrate: int = 115200, use_clear_text: bool = False):
         """
         Initializes the NRF24Device with provided port, channel, address, and baudrate.
         Raises ValueError if the provided channel and address are out of allowed range.
@@ -35,7 +35,7 @@ class NRF24Device:
         try:
             self.serial_port = serial.Serial(port, baudrate, timeout=None)
             self.read_thread = None
-            self.reader = PacketReader(self.serial_port) 
+            self.reader = PacketReader(self.serial_port, use_clear_text)
         except Exception as err:
             logging.error(f"Could not connect to Serial Device {port}:{baudrate}")
             self.error = True
@@ -55,7 +55,7 @@ class NRF24Device:
         does not send correct INIT message or does not react correctly to Host INIT message.
         """
         logging.info(f"Initialize NRF24USB Device with channel: {self.channel} address: {self.address} ...")
-        
+
         # Try to Read the INIT message of the device
         (type, data) = self.reader.wait_for_packet(timeout=2.0)
         if type != PACKET_TYPES.INIT or data == None or len(data) != 5:
@@ -104,7 +104,6 @@ class NRF24Device:
             logging.warning("Waiting with send_msg while nrfDevice is not connected")
             while not self.connected:
                 time.sleep(1)
-
 
         raw_msg_hex = [hex(i) for i in data]
         with self.lock:

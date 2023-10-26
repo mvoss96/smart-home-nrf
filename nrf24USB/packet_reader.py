@@ -13,7 +13,9 @@ class PACKET_TYPES(Enum):
     INIT = 2
     ERROR = 3
     OK = 4
-    INFO = 5
+    EMPTY = 5
+    REBOOT = 6
+    SETTING = 7
 
 
 class SpecialBytes:
@@ -28,9 +30,10 @@ class SpecialBytes:
 
 
 class PacketReader:
-    def __init__(self, port: serial.Serial):
+    def __init__(self, port: serial.Serial, use_clear_text: bool = False):
         self.port = port
         self.intermediate_buffer = deque()
+        self.use_clear_text = use_clear_text
         self.reset_buffer()
         self.lock = Lock()
         self.packet_lock = Lock()
@@ -38,6 +41,7 @@ class PacketReader:
     def reset_buffer(self):
         """Resets the buffer and other related flags/counts for a new packet."""
         self.in_escape = False
+        self.text_buffer = ""
         self.data = []
         self.received_bytes = 0
         self.packet_type = None
@@ -59,7 +63,7 @@ class PacketReader:
                     return pck
 
             raise TimeoutError
-    
+
     def handle_byte(self, byte) -> Optional[tuple[Optional[PACKET_TYPES], list]]:
         """
         Handles a received byte.
@@ -67,21 +71,24 @@ class PacketReader:
         :param byte: The received byte.
         :return: The received packet's type and data as a tuple, or None if packet isn't complete.
         """
-        #print("read: ", byte)
+        # print("read: ", byte)
+        if self.use_clear_text:
+            return self.handle_byte_clear_text(byte)
+
         if not self.in_escape:  # Handle Special Bytes
             if byte == SpecialBytes.ESCAPE_BYTE:
-                #print("escape byte")
+                # print("escape byte")
                 self.in_escape = True
                 return None
             elif byte == SpecialBytes.START_BYTE:
-                #print("start byte")
+                # print("start byte")
                 self.reset_buffer()  # Reset the Data Array when a new packet starts
                 return None
             elif byte == SpecialBytes.END_BYTE:
                 if self.packet_type is None:
                     logging.warning(f"END_BYTE received before START_BYTE.")
                     return None
-                #print("end byte")
+                # print("end byte")
                 logging.info(f"Read Packet End: {self.packet_type} {self.data}")
                 packet = (self.packet_type, self.data)
                 self.reset_buffer()
@@ -92,12 +99,43 @@ class PacketReader:
                 self.packet_type = PACKET_TYPES(byte)
             except ValueError:
                 logging.warning(f"Unsupported PackageType {byte}")
-                
-            
+
         else:
             self.data.append(byte)
             self.received_bytes += 1
         self.in_escape = False
+        return None
+
+    def handle_byte_clear_text(self, byte) -> Optional[tuple[Optional[PACKET_TYPES], list]]:
+        """
+        Handles a received byte using the clear text protocoll.
+
+        :param byte: The received byte.
+        :return: The received packet's type and data as a tuple, or None if packet isn't complete.
+        """
+        if byte == ";":
+            self.reset_buffer()
+        elif byte == "\r":
+            return
+        if byte == "\n":
+            tokens = self.text_buffer.split(":")
+            print(tokens)
+            if len(tokens) == 0:
+                return None
+
+            try:
+                self.packet_type = PACKET_TYPES(tokens[0])
+                for t in tokens:
+                    self.data.append(int(t))
+            except ValueError:
+                logging.warning("Malformed clear text sequence!", tokens)
+                return None
+
+            packet = (self.packet_type, self.data)
+            self.reset_buffer()
+            return packet
+        else:
+            self.text_buffer += byte
         return None
 
     def read_packet(self) -> Optional[tuple[Optional[PACKET_TYPES], list]]:
@@ -109,7 +147,7 @@ class PacketReader:
         with self.packet_lock:
             if self.port.in_waiting > 0:
                 byte_data = self.port.read_all()
-                #print(byte_data)
+                # print(byte_data)
                 if byte_data is not None:
                     self.intermediate_buffer.extend(byte_data)
 

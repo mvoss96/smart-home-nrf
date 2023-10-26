@@ -9,6 +9,9 @@ class RotRemote(DeviceStatus):
         "target", # 0
     ]
     supported_versions = [1]
+    mqtt_discovery_paramters = [
+        ("battery", "battery_percent"),
+    ]
 
     def __init__(self, data: list[int]):
         self.valid = False

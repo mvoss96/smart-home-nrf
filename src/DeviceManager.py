@@ -32,7 +32,8 @@ class DeviceManager:
             if time.time() - start_time > 5:
                 raise TimeoutError("NRF24Device could not be started")
 
-    def get_supported_device(self, device_type: str) -> Optional[Type[DeviceStatus]]:
+    @classmethod
+    def get_supported_device(cls, device_type: str) -> Optional[Type[DeviceStatus]]:
         # Check if the class exists in the supported_devices list
         if not any(hasattr(cls, "__name__") and cls.__name__ == device_type for cls in supported_devices):
             logger.error(f"Device type {device_type} not supported!")

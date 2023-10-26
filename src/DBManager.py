@@ -21,7 +21,7 @@ class DBManager:
         # Initialize the uuid attribute by calling the initialize_uuid method
         self.uuid = self.initialize_uuid()
 
-        # Queque to notify the mqttManger about changed parameters
+        # Queque to notify the mqttManager about changed parameters
         self.changed_devices_queue = queue.Queue()
 
         # Make sure all devices get published to mqtt on startup
@@ -178,7 +178,7 @@ class DBManager:
                         changes[key] = value
 
             if changes != {}:
-                self.changed_devices_queue.put((str(uuid), changes))
+                self.changed_devices_queue.put((uuid, changes))
 
             # Update DB
             with self.db_lock:

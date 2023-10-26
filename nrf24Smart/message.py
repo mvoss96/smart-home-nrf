@@ -90,3 +90,28 @@ class HostMessage:
             f"HostMessage ID:{self.ID} UUID:{':'.join(f'{byte:02X}' for byte in self.UUID)} TYPE: {MSG_TYPES(self.MSG_TYPE)} "
             + f"DATA:{':'.join(f'{byte:02X}' for byte in self.DATA)} CHECKSUM:{self.CHECKSUM[0]:02X}{self.CHECKSUM[1]:02X}"
         )
+    
+
+class RemoteMessage:
+    def __init__(self, raw_data) -> None:
+        self.raw_data = raw_data
+        if len(self.raw_data) < 14:
+            print("DeviceMessage must be at least 12 bytes long")
+            self.is_valid = False
+            return
+        self.ID = self.raw_data[0]
+        self.UUID = self.raw_data[1:5]
+        self.MSG_TYPE = self.raw_data[5]
+        self.TARGET_UUID = self.raw_data[6:10]
+        self.LAYER = self.raw_data[10]
+        self.VALUE = self.raw_data[11]
+        self.CHECKSUM = (self.raw_data[-2] << 8) | self.raw_data[-1]  # MSB, LSB
+        # Calculate the checksum from the data (excluding checksum bytes)
+        self.is_valid = self.CHECKSUM == sum(self.raw_data[:-2])  
+
+
+    def __str__(self) -> str:
+        return (
+            f"RemoteMessage ID:{self.ID} UUID:{':'.join(f'{byte:02X}' for byte in self.UUID)} TYPE: {MSG_TYPES(self.MSG_TYPE)}"
+            + f"TARGET_UUID:{':'.join(f'{byte:02X}' for byte in self.TARGET_UUID)} LAYER:{self.LAYER} VALUE:{self.VALUE} VALID:{self.is_valid}"
+        )
