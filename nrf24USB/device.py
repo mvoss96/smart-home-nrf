@@ -15,7 +15,15 @@ class NRF24Device:
     send packets and messages, get messages, handle packets, read loop, stop read loop and destructor.
     """
 
-    def __init__(self, port: str, channel: int, address: int, baudrate: int = 115200, use_clear_text: bool = False):
+    def __init__(
+        self,
+        port: str,
+        channel: int,
+        address: int,
+        baudrate: int = 115200,
+        use_clear_text: bool = False,
+        blink_on_message: bool = True,
+    ):
         """
         Initializes the NRF24Device with provided port, channel, address, and baudrate.
         Raises ValueError if the provided channel and address are out of allowed range.
@@ -26,12 +34,15 @@ class NRF24Device:
             raise ValueError("Address must be between 0 and 255.")
 
         self.lock = Lock()
-        self.connected = False
-        self.channel = channel
-        self.address = address
+        self.connected: bool = False
+        self.channel: int = channel
+        self.address: int = address
         self.stop_event = threading.Event()  # Create an event to signal the thread to stop
         self.msg_queue = queue.Queue()  # Create a new queue
-        self.error = False
+        self.error: bool = False
+        self.last_send_response: Optional[tuple] = None
+        self.use_clear_text: bool = use_clear_text
+        self.blink_on_message: bool = blink_on_message
         try:
             self.serial_port = serial.Serial(port, baudrate, timeout=None)
             self.read_thread = None
@@ -57,7 +68,7 @@ class NRF24Device:
         logging.info(f"Initialize NRF24USB Device with channel: {self.channel} address: {self.address} ...")
 
         # Try to Read the INIT message of the device
-        (type, data) = self.reader.wait_for_packet(timeout=2.0)
+        (type, data) = self.reader.wait_for_packet(timeout=3.0)
         if type != PACKET_TYPES.INIT or data == None or len(data) != 5:
             raise ConnectionError("Device did not send correct INIT message!")
         self.firmware_version = data[0]  # uint8_t
@@ -68,7 +79,7 @@ class NRF24Device:
 
         # Send the Host INIT message containing the channel and address
         self.serial_port.reset_input_buffer()  # Clear Input Buffer
-        self.send_packet(bytes([self.channel, self.address]), PACKET_TYPES.INIT)
+        self.send_packet(bytes([self.channel, self.address, self.use_clear_text, self.blink_on_message]), PACKET_TYPES.INIT)
         # Wait for the OK Message
         time.sleep(0.5)
         (type, _) = self.reader.wait_for_packet(timeout=1.0)
@@ -77,21 +88,40 @@ class NRF24Device:
         logging.info("Device initialized successfully!")
         self.connected = True
 
+    def _send_packet_bs(self, data: bytes, msg_type: PACKET_TYPES):
+        """
+        Sends packet to the NRF24USB device usig byte stuffing. Takes bytes of data and message type as arguments.
+        """
+        logging.info(f"sending packet bs {msg_type} {list(data)}")
+        self.serial_port.write(bytes([msg_type.value]))  # Write the packet type
+        for byte_value in data:
+            if SpecialBytes.is_special_byte(byte_value):
+                self.serial_port.write(bytes([SpecialBytes.ESCAPE_BYTE]))
+                self.serial_port.write(bytes([byte_value]))
+            else:
+                self.serial_port.write(bytes([byte_value]))
+
+    def _send_packet_clear(self, data: bytes, msg_type: PACKET_TYPES):
+        """
+        Sends packet to the NRF24USB device using clear text. Takes bytes of data and message type as arguments.
+        """
+        logging.info(f"sending packet clear {msg_type} {list(data)}")
+        self.serial_port.write(msg_type.name.encode('utf-8'))
+        for byte_value in data:
+            self.serial_port.write(b":")
+            self.serial_port.write(str((byte_value)).encode('utf-8'))
+
     def send_packet(self, data: bytes, msg_type: PACKET_TYPES):
         """
         Sends packet to the NRF24USB device. Takes bytes of data and message type as arguments.
-        """
-        logging.debug(f"sending packet {msg_type} {data}")
-        self.serial_port.write(bytes([SpecialBytes.START_BYTE]))  # Write the start byte
-        self.serial_port.write(bytes([msg_type.value]))  # Write the packet type
+        """ 
+        self.serial_port.write(b";")
+        if self.use_clear_text:
+            self._send_packet_clear(data, msg_type)
+        else:
+            self._send_packet_bs(data, msg_type)
+        self.serial_port.write(b";")
 
-        for byte in data:
-            if SpecialBytes.is_special_byte(byte):
-                self.serial_port.write(bytes([SpecialBytes.ESCAPE_BYTE]))
-                self.serial_port.write(bytes([byte]))
-            else:
-                self.serial_port.write(bytes([byte]))
-        self.serial_port.write(bytes([SpecialBytes.END_BYTE]))  # Write the end byte
 
     def send_msg(self, destination: int, data: list[int], require_ack=True) -> Optional[list[int]]:
         """
@@ -108,27 +138,31 @@ class NRF24Device:
         raw_msg_hex = [hex(i) for i in data]
         with self.lock:
             print(f"send to id:{destination} {raw_msg_hex}")
-
             self.send_packet(bytes([destination, require_ack]) + bytes(data), PACKET_TYPES.MSG)
-            if not require_ack:
-                return []
-            for _ in range(5):
-                try:
-                    (recv_type, recv_data) = self.reader.wait_for_packet(timeout=0.5)
-                except TimeoutError:
-                    logging.error(f"Timeout while waiting for response from send_msg")
-                    return None
-                if recv_type is PACKET_TYPES.OK:
-                    return recv_data
-                elif recv_type is PACKET_TYPES.ERROR:
-                    return None
-                elif recv_type is None:
-                    logging.warning("received packet with type None!")
-                else:
-                    self.handle_packet(recv_type, recv_data)
+        if not require_ack:
+            return []
 
-            logging.error(f"NRF24USB device did not respond to send message!")
+        # Wait for Device to respond
+        start_time = time.time()
+        self.last_send_response = None
+        while self.last_send_response is None:
+            if time.time() - start_time > 0.2:
+                logging.error(f"Timeout while waiting for response from NRF24USB device")
+                return None
+
+        print("t: ", time.time() - start_time)
+        try:
+            (recv_type, recv_data) = self.last_send_response  # type: ignore
+        except ValueError:
+            logging.error(f"Cant unpack last_send_response: {self.last_send_response}")
             return None
+
+        if recv_type is PACKET_TYPES.OK:
+            return recv_data
+        elif recv_type is PACKET_TYPES.ERROR:
+            return None
+        else:
+            logging.error(f"Unknow recv_type: {recv_type}")
 
     def get_message(self):
         """
@@ -158,6 +192,8 @@ class NRF24Device:
         elif packet_type == PACKET_TYPES.MSG:
             logging.debug(f"Put packet in queque {packet_type} {packet_data}")
             self.msg_queue.put((packet_type, packet_data))  # Put the message into the queue
+        elif packet_type in (PACKET_TYPES.OK, PACKET_TYPES.ERROR):
+            self.last_send_response = (packet_type, packet_data)
         else:
             logging.warning(f"MSG_TYPE {packet_type} {packet_data} was ignored!")
 
