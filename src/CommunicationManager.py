@@ -32,6 +32,7 @@ class CommunicationManager:
         self.msg_nums = {}
 
         # Devices where we are waiting for an ack message
+        self.wait_for_status_acks: bool = True
         self.wait_for_status = set()
 
         # Queque to notify the mqttManager about events
@@ -57,7 +58,7 @@ class CommunicationManager:
         # Return early if device not in db
         if self.db_manager.search_device_in_db(uuid) is None:
             return
-        
+
         uuid_string = str(uuid)
 
         # Check if device_id is in msg_nums
@@ -165,7 +166,7 @@ class CommunicationManager:
         if hasattr(class_obj, "get_remote_event") and callable(getattr(class_obj, "get_remote_event")):
             event = class_obj.get_remote_event(msg.LAYER, msg.VALUE)
         self.event_queue.put((msg.UUID, event))
-        
+
     def handle_boot_message(self, msg: DeviceMessage):
         """
         Checks the BOOT message from a device.
@@ -267,7 +268,8 @@ class CommunicationManager:
                         else:
                             if uuid_string in self.failed_sends:
                                 del self.failed_sends[uuid_string]
-                            self.wait_for_status.add(id)
+                            if self.wait_for_status_acks:
+                                self.wait_for_status.add(id)
                             keys_updated.append((id, uuid_string, key, value))
                         time.sleep(0.05)
 
@@ -287,7 +289,7 @@ class CommunicationManager:
                 # Only remove if values have not changed:
                 for i in range(5):
                     if value == self.parameter_buffer[uuid_string].get(key):
-                        # print("wait for status from id", id)
+                        #print("wait for status from id", id)
                         if id not in self.wait_for_status:
                             # print(f"delete {key}")
                             del self.parameter_buffer[uuid_string][key]
@@ -295,7 +297,7 @@ class CommunicationManager:
                             keys_updated.remove(entry)
                             break
                         time.sleep(0.1)
-                if entry in keys_updated:
+                if id in self.wait_for_status:
                     logger.warning(f"did not receive status update in time from device {uuid_string}")
 
         logger.info("Stopped update_all_devices")
@@ -336,6 +338,6 @@ class CommunicationManager:
             self.parameter_buffer[uuid_string] = {}
         self.parameter_buffer[uuid_string][parameter] = new_val
         return True
-    
+
     def get_event(self):
         return self.event_queue.get() if not self.event_queue.empty() else None
