@@ -51,6 +51,15 @@ class CommunicationManager:
         # Return the number of missing entries
         return len(missing_set)
 
+    def reset_connection_health(self, uuid: list[int]):
+        uuid_string = str(uuid)
+        if self.db_manager.search_device_in_db(uuid) is None or uuid_string not in self.msg_nums:
+            return
+
+        logger.debug(f"reset list for uuid {uuid}")
+        self.msg_nums[uuid_string].clear()
+        self.msg_nums[uuid_string].append(0)
+
     def update_connection_health(self, uuid: list[int], msg_num: int):
         """
         Updates the Connection Status by calcualting the missed messages
@@ -70,9 +79,7 @@ class CommunicationManager:
 
         # If msg_num either cycles back to 0 or the device resets, reset the list
         elif msg_num == 0 or msg_num < max(self.msg_nums[uuid_string]):
-            logger.debug("reset list")
-            self.msg_nums[uuid_string].clear()
-            self.msg_nums[uuid_string].append(0)
+            self.reset_connection_health(uuid)
 
         elif msg_num in self.msg_nums[uuid_string]:
             logger.warning(f"Repeated msg_num {msg_num} in {self.msg_nums[uuid_string]} for device {uuid}")
@@ -205,18 +212,20 @@ class CommunicationManager:
                 if not msg.is_valid:
                     logger.warning(f"invalid message! {msg.raw_data}")
                     continue
+                
+                if msg.MSG_TYPE == MSG_TYPES.INIT.value:
+                    self.handle_init_mesage(msg)
+                elif msg.MSG_TYPE == MSG_TYPES.BOOT.value:
+                    self.handle_boot_message(msg)
 
                 uuid_string = str(msg.UUID)
                 if uuid_string in self.msg_nums and msg.MSG_NUM == self.msg_nums[uuid_string][-1]:
                     logger.warning(f"Ignore msg with repeated msg_num {msg.MSG_NUM} for {uuid_string}")
                     continue
-
                 self.update_connection_health(msg.UUID, msg.MSG_NUM)
-                if msg.MSG_TYPE == MSG_TYPES.INIT.value:
-                    self.handle_init_mesage(msg)
-                elif msg.MSG_TYPE == MSG_TYPES.BOOT.value:
-                    self.handle_boot_message(msg)
-                elif msg.MSG_TYPE in (MSG_TYPES.STATUS.value, MSG_TYPES.OK.value):
+
+                
+                if msg.MSG_TYPE in (MSG_TYPES.STATUS.value, MSG_TYPES.OK.value):
                     self.handle_status_message(msg)
                 else:
                     logger.warning(f"->Unknown DeviceMessage {msg}")
@@ -289,7 +298,7 @@ class CommunicationManager:
                 # Only remove if values have not changed:
                 for i in range(5):
                     if value == self.parameter_buffer[uuid_string].get(key):
-                        #print("wait for status from id", id)
+                        # print("wait for status from id", id)
                         if id not in self.wait_for_status:
                             # print(f"delete {key}")
                             del self.parameter_buffer[uuid_string][key]

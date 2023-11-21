@@ -43,6 +43,10 @@ def create_discovery_topic(uuid, parameter_type: str, parameter: str) -> str:
 def create_discovery_payload(class_obj, device, parameter_type, parameter) -> str:
     payload = {}
     uuid = device["uuid"]
+    if "status" not in device:
+        logger.warning(f"device {uuid} has not status")
+        return ""
+    
     uuid_str = to_hexstr(uuid)
     mqtt_device = {
         "identifiers": [f"nrfSmart_0x{uuid_str}"],
