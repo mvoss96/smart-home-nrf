@@ -5,10 +5,57 @@
 #include "blinkcodes.h"
 
 NRFLite _radio; // The nrflite radio instance
-const uint8_t BUFFER_SIZE = 128;
-uint8_t buffer[BUFFER_SIZE];
-bool clearTextMode = false;
+
+bool clearTextMode = true;
 bool blinkOnMessage = true;
+uint8_t serialBuffer[SERIAL_BUFFER_SIZE];
+
+/**
+ * @brief Read data from the serial port
+ *
+ * @return int The number of bytes received, or 0 if no data was read
+ */
+uint8_t readDataFromSerial()
+{
+    static uint8_t received_bytes = 0;
+    static bool messageStarted = false;
+    static bool in_escape = false;
+
+    while (Serial.available())
+    {
+        uint8_t byte = Serial.read();
+
+        if (!in_escape && byte == ESCAPE_BYTE)
+        {
+            in_escape = true;
+            continue;
+        }
+
+        if (!in_escape && byte == MESSAGE_SEPERATOR)
+        {
+            if (messageStarted) // If we have received bytes, we consider this the end of the message
+            {
+                uint8_t ret = received_bytes;
+                messageStarted = false;
+                serialBuffer[received_bytes] = '\0'; // Null terminate the buffer
+                received_bytes = 0;
+                //Serial.print("received_bytes: ");
+                //Serial.println(ret);
+                return ret;
+            }
+            received_bytes = 0; // Reset for a new message
+            messageStarted = true;
+            continue;
+        }
+
+        if (received_bytes < SERIAL_BUFFER_SIZE)
+        {
+            serialBuffer[received_bytes++] = byte;
+        }
+        in_escape = false;
+    }
+    return 0; // No Complete Packet
+}
 
 /**
  * @brief Wait for Host Connection and initialize the radio
@@ -17,74 +64,93 @@ bool blinkOnMessage = true;
 void waitForHost()
 {
     long lastInitMsg = -10000;
+    digitalWrite(PIN_LED2, LOW);
+    digitalWrite(PIN_LED2, LOW);
 
     while (true)
     {
-        if (millis() - lastInitMsg > 1000)
+        if (millis() - lastInitMsg > INIT_MSG_PERIOD)
         {
             sendInitMessage();
             lastInitMsg = millis();
         }
         delay(100); // Short delay to let the host read the message
-        int packetSize = readDataFromSerial(buffer, BUFFER_SIZE);
-        if (packetSize >= 2) // Check if a correct packet was successfully received
-        {
-            MSG_TYPES receivedType = static_cast<MSG_TYPES>(buffer[0]); // Extract the packet type
-            if (receivedType == MSG_TYPES::INIT)                        // Check if the packet type is INIT
-            {
-                uint8_t channel = buffer[1]; // Byte at position 1 is first data byte since byte 0 is msg_type
-                uint8_t address = buffer[2];
+        uint8_t serialDataSize = readDataFromSerial();
+        if (serialDataSize == 0)
+            continue; // Nothing received
 
-                if (packetSize >= 3)
+        SerialMessage msg(serialBuffer, serialDataSize);
+        if (msg.isValid() && msg.getdataSize() >= 2)
+        {
+            if (msg.getType() == MSG_TYPES::INIT) // Check if the packet type is INIT
+            {
+                uint8_t channel = msg.getData()[0];
+                uint8_t address = msg.getData()[1];
+
+                if (msg.getdataSize() >= 3)
                 {
-                    clearTextMode = buffer[3];
+                    clearTextMode = msg.getData()[2];
                 }
-                if (packetSize >= 4)
+                if (msg.getdataSize() >= 4)
                 {
-                    blinkOnMessage = buffer[4];
+                    blinkOnMessage = msg.getData()[3];
                 }
 
                 if (!testConnection(channel, address))
                 {
-                    for (;;)
-                    {
-                        sendStringMessage("NRF ERROR!", MSG_TYPES::ERROR);
-                        delay(1000);
-                    }
+                    sendStringMessage("NRF CONNECTION ERROR!", MSG_TYPES::ERROR);
+                    delay(1000);
+                    asm("JMP 0");
                 }
-                char msg[32];
-                snprintf(msg, sizeof(msg), "NRF INIT channel:%d address:%d", channel, address);
+                char msg[64];
+                snprintf(msg, sizeof(msg), "NRF INITIALIZED channel:%d address:%d", channel, address);
                 sendStringMessage(msg, MSG_TYPES::OK);
                 break;
             }
+            Serial.println((uint8_t)msg.getType());
         }
     }
+
+    digitalWrite(PIN_LED2, HIGH);
+    digitalWrite(PIN_LED2, HIGH);
 }
 
 void checkForSerialMsg()
 {
-    int packetSize = readDataFromSerial(buffer, BUFFER_SIZE);
-    if (packetSize >= 0)
+    uint8_t serialDataSize = readDataFromSerial();
+    if (serialDataSize == 0)
     {
-        MSG_TYPES receivedType = static_cast<MSG_TYPES>(buffer[0]); // Extract the packet type
-        uint8_t *data = buffer + 1;
+        return; // Nothing received
+    }
 
-        if (receivedType == MSG_TYPES::REBOOT)
-        {
-            sendStringMessage("REBOOT...", MSG_TYPES::REBOOT);
-            delay(100);
-            asm("JMP 0");
-        }
-        else if (receivedType == MSG_TYPES::SETTING && packetSize >= 1)
-        {
-            blinkOnMessage = data[0];
-        }
-        else if (receivedType == MSG_TYPES::MSG && packetSize >= 3)
-        {
-            uint8_t destinationID = data[0];
-            uint8_t requireAck = data[1];
-            nrfSend(destinationID, data + 2, packetSize - 2, static_cast<bool>(requireAck));
-        }
+    SerialMessage msg(serialBuffer, serialDataSize);
+    if (!msg.isValid())
+    {
+        Serial.println("Invalid Message!");
+        msg.print();
+        return;
+    }
+
+    if (msg.getType() == MSG_TYPES::REBOOT)
+    {
+        sendStringMessage("REBOOT...", MSG_TYPES::REBOOT);
+        delay(100);
+        asm("JMP 0");
+    }
+    else if (msg.getType() == MSG_TYPES::SETTING && msg.getdataSize() >= 1)
+    {
+        blinkOnMessage = msg.getData()[0];
+    }
+    else if (msg.getType() == MSG_TYPES::MSG && msg.getdataSize() >= 3)
+    {
+        uint8_t destinationID = msg.getData()[0];
+        uint8_t requireAck = msg.getData()[1];
+        nrfSend(destinationID, (void *)(msg.getData() + 2), msg.getdataSize() - 2, static_cast<bool>(requireAck));
+    }
+    else
+    {
+        Serial.println("Unknown Message!");
+        msg.print();
     }
 }
 
@@ -115,20 +181,18 @@ bool testConnection(uint8_t channel, uint8_t address)
  */
 bool isSpecialByte(uint8_t byte)
 {
-    return (byte == START_BYTE || byte == END_BYTE || byte == ESCAPE_BYTE);
+    return (byte == MESSAGE_SEPERATOR || byte == ESCAPE_BYTE);
 }
 
 /**
  * @brief Sends an array of data bytes over the serial interface with byte stuffing.
- *        The function adds a start byte, packet size, and end byte to the data stream.
- *        Special bytes (start, end, and escape) within the data are escaped to avoid confusion.
+ *        Special bytes  within the data are escaped to avoid confusion.
  *
  * @param data Pointer to the array of data bytes to be sent
  * @param size The number of data bytes to be sent from the array
  */
 void sendPacketBS(uint8_t *data, uint8_t size, MSG_TYPES type)
 {
-    Serial.write(START_BYTE);                 // Write the start byte
     Serial.write(static_cast<uint8_t>(type)); // Write the packet type
     for (uint8_t i = 0; i < size; i++)
     {
@@ -143,7 +207,6 @@ void sendPacketBS(uint8_t *data, uint8_t size, MSG_TYPES type)
             Serial.write(data[i]);
         }
     }
-    Serial.write(END_BYTE); // Write the end byte
 }
 
 /**
@@ -154,9 +217,6 @@ void sendPacketBS(uint8_t *data, uint8_t size, MSG_TYPES type)
  */
 void sendPacketClear(uint8_t *data, uint8_t size, MSG_TYPES type)
 {
-    Serial.write(TEXT_SEPERATOR);
-    Serial.write(DEVICE_NAME);
-    Serial.write(BYTE_SEPERATOR);
     Serial.write(msgTypeString(type)); // Write the packet type
     Serial.write(BYTE_SEPERATOR);      // Write data
     for (uint8_t i = 0; i < size; i++)
@@ -177,8 +237,6 @@ void sendPacketClear(uint8_t *data, uint8_t size, MSG_TYPES type)
             Serial.write(BYTE_SEPERATOR);
         }
     }
-    Serial.write('\n');
-    Serial.flush();
 }
 
 /**
@@ -189,6 +247,7 @@ void sendPacketClear(uint8_t *data, uint8_t size, MSG_TYPES type)
  */
 void sendPacket(uint8_t *data, uint8_t size, MSG_TYPES type)
 {
+    Serial.write(MESSAGE_SEPERATOR);
     if (clearTextMode)
     {
         sendPacketClear(data, size, type);
@@ -197,6 +256,9 @@ void sendPacket(uint8_t *data, uint8_t size, MSG_TYPES type)
     {
         sendPacketBS(data, size, type);
     }
+    Serial.write(MESSAGE_SEPERATOR);
+    Serial.write('\n');
+    Serial.flush();
 }
 
 /**
@@ -211,6 +273,7 @@ void sendStringMessage(const char *message, MSG_TYPES type)
 
 /**
  * @brief Send the init message containig the firmware version and the uuid
+ * Sends the Message with byte Stuffing and with clear Text
  *
  */
 void sendInitMessage()
@@ -293,134 +356,4 @@ uint8_t readAckPayload()
     // Serial.println();
     sendPacket(buff, length, MSG_TYPES::OK);
     return length;
-}
-
-/**
- * @brief Read data from the serial port using the custom protocol with byte stuffing
- *
- * @param buffer An array to store the received data must be sufficiently big
- * @param bufferSize The size of the buffer array
- * @return int The number of bytes received (excluding the message type), or -1 if no Packet
- */
-int readDataFromSerialBS(uint8_t *buffer, uint8_t bufferSize)
-{
-    static uint8_t received_bytes = 0;
-    static bool in_escape = false;
-    while (Serial.available())
-    {
-        uint8_t byte = Serial.read();
-
-        if (!in_escape && byte == ESCAPE_BYTE)
-        {
-            in_escape = true;
-        }
-        else
-        {
-            if (!in_escape)
-            {
-                if (byte == START_BYTE)
-                {
-                    received_bytes = 0;
-                    continue;
-                }
-                if (byte == END_BYTE)
-                {
-                    return received_bytes - 1; // Subtract 1 for the message type
-                }
-            }
-            else
-            {
-                in_escape = false;
-            }
-
-            if (received_bytes < bufferSize)
-            {
-                buffer[received_bytes++] = byte;
-            }
-            else
-            {
-                return -1; // Buffer Overflow
-            }
-        }
-    }
-    return -1; // No Complete Packet
-}
-
-/**
- * @brief Read data from the serial port using clear Text mode
- *
- * @param buffer An array to store the received data must be sufficiently big
- * @param bufferSize The size of the buffer array
- * @return int The number of bytes received (excluding the message type), or -1 if no Packet
- */
-int readDataFromSerialClear(uint8_t *buffer, uint8_t bufferSize)
-{
-    static String incomingMessage = "";
-    static bool messageStarted = false;
-    while (Serial.available())
-    {
-        char incomingChar = Serial.read();
-
-        // Start reading a new message
-        if (incomingChar == ';')
-        {
-            messageStarted = true;
-            incomingMessage = "";
-        }
-        // End of message
-        else if (incomingChar == '\n' && messageStarted)
-        {
-            messageStarted = false;
-
-            // Parsing message
-            int received_bytes = 0;
-            char *str = &incomingMessage[0];
-            char *token = strtok(str, ":");
-            if (token != NULL)
-            {
-                buffer[0] = (uint8_t)stringToMsgType(token); // Extract Message Type
-                token = strtok(NULL, ":");
-            }
-
-            while (token != NULL)
-            {
-                if (received_bytes < bufferSize - 1)
-                {
-                    uint8_t value = (uint8_t)atoi(token);
-                    buffer[1 + received_bytes++] = value;
-                }
-                else
-                {
-                    return -1; // Buffer Overflow
-                }
-                token = strtok(NULL, ":");
-            }
-            return received_bytes;
-        }
-        // Accumulate incoming bytes
-        else if (messageStarted)
-        {
-            incomingMessage += incomingChar;
-        }
-    }
-    return -1; // No Complete Packet
-}
-
-/**
- * @brief Read data from the serial port
- *
- * @param buffer An array to store the received data must be sufficiently big
- * @param bufferSize The size of the buffer array
- * @return int The number of bytes received (excluding the message type), or -1 if an error occurred
- */
-int readDataFromSerial(uint8_t *buffer, uint8_t bufferSize)
-{
-    if (clearTextMode)
-    {
-        return readDataFromSerialClear(buffer, bufferSize);
-    }
-    else
-    {
-        return readDataFromSerialBS(buffer, bufferSize);
-    }
 }
