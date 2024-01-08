@@ -1,6 +1,9 @@
 from tinydb import TinyDB, Query
+from tinydb.table import Document, Table
 import random
 from threading import Lock
+from typing import Optional
+
 from src.Logger import setup_logger
 import queue
 
@@ -28,7 +31,7 @@ class DBManager:
         for device in self.get_all_devices():
             self.changed_devices_queue.put((device["uuid"], device))
 
-    def initialize_devices_table(self):
+    def initialize_devices_table(self) -> Table:
         """
         Check if a "devices" table exists in the database.
         If not, it creates a new table named "devices".
@@ -38,7 +41,7 @@ class DBManager:
             self.db.table("devices")
         return self.db.table("devices")
 
-    def initialize_uuid(self):
+    def initialize_uuid(self) -> list[int]:
         """
         Check if a uuid field exists in the database.
         If not, it generates a new uuid and inserts it into the database.
@@ -57,14 +60,14 @@ class DBManager:
                 logger.info(f"Read UUID: {uuid}")
                 return uuid
 
-    def generate_uuid(self):
+    def generate_uuid(self) -> list[int]:
         """
         Generate a new UUID consisting of 4 random numbers each between 0 and 255.
         Return this new UUID.
         """
         return [random.randint(0, 255) for _ in range(4)]
 
-    def get_free_id(self):
+    def get_free_id(self) -> Optional[int]:
         """
         Search through all device IDs in the devices table to find an unused ID.
         Returns the smallest unused ID.
@@ -87,7 +90,7 @@ class DBManager:
             self.db.insert({"http_password": pw})
             logger.info("Set http_password")
 
-    def check_http_password(self, pw):
+    def check_http_password(self, pw) -> bool:
         """
         Returns wether the provided password corresponds to the one in the database
         """
@@ -100,7 +103,7 @@ class DBManager:
             else:
                 return search_result[0]["http_password"] == pw
 
-    def search_device_in_db(self, uuid: list[int]):
+    def search_device_in_db(self, uuid: list[int]) -> Optional[dict]:
         """
         Search for a device in the devices table using the given UUID.
         Returns the search result.
@@ -114,7 +117,7 @@ class DBManager:
             logger.error(f"Error occurred while searching device by UUID: {e}")
             return None
 
-    def search_device_in_db_by_id(self, device_id: int):
+    def search_device_in_db_by_id(self, device_id: int) -> Optional[dict]:
         """
         Search for a device in the devices table using the given ID.
         Returns the search result.
@@ -128,7 +131,7 @@ class DBManager:
             logger.error(f"Error occurred while searching device by ID: {e}")
             return None
 
-    def get_all_devices(self):
+    def get_all_devices(self) -> list[Document]:
         """
         Returns all devices in the database.
         """
@@ -227,5 +230,5 @@ class DBManager:
         except Exception as e:
             logger.error(f"Unexpected error for device in DB: {e}")
 
-    def get_changes(self):
+    def get_changes(self) -> Optional[tuple[str,Document]]:
         return self.changed_devices_queue.get() if not self.changed_devices_queue.empty() else None

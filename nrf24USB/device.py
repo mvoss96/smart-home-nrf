@@ -92,7 +92,7 @@ class NRF24Device:
         """
         Sends packet to the NRF24USB device usig byte stuffing. Takes bytes of data and message type as arguments.
         """
-        logging.info(f"sending packet bs {msg_type} {list(data)}")
+        logging.debug(f"sending packet bs {msg_type} {list(data)}")
         self.serial_port.write(bytes([msg_type.value]))  # Write the packet type
         for byte_value in data:
             if SpecialBytes.is_special_byte(byte_value):
@@ -105,7 +105,7 @@ class NRF24Device:
         """
         Sends packet to the NRF24USB device using clear text. Takes bytes of data and message type as arguments.
         """
-        logging.info(f"sending packet clear {msg_type} {list(data)}")
+        logging.debug(f"sending packet clear {msg_type} {list(data)}")
         self.serial_port.write(msg_type.name.encode('utf-8'))
         for byte_value in data:
             self.serial_port.write(b":")
@@ -137,7 +137,7 @@ class NRF24Device:
 
         raw_msg_hex = [hex(i) for i in data]
         with self.lock:
-            print(f"send to id:{destination} {raw_msg_hex}")
+            #print(f"send to id:{destination} {raw_msg_hex}")
             self.send_packet(bytes([destination, require_ack]) + bytes(data), PACKET_TYPES.MSG)
         if not require_ack:
             return []
@@ -146,11 +146,12 @@ class NRF24Device:
         start_time = time.time()
         self.last_send_response = None
         while self.last_send_response is None:
-            if time.time() - start_time > 1:
+            time.sleep(0.1)
+            if time.time() - start_time > 0.5:
                 logging.error(f"Timeout while waiting for response from NRF24USB device")
                 return None
 
-        print("t: ", time.time() - start_time)
+        #print("t: ", time.time() - start_time)
         try:
             (recv_type, recv_data) = self.last_send_response  # type: ignore
         except ValueError:
@@ -185,6 +186,7 @@ class NRF24Device:
             logging.error(
                 f"NRF24USB Device reported ERROR: {bytes(packet_data).decode(errors='ignore') if packet_data is not None else ''}"
             )
+            self.last_send_response = (packet_type, None)
         elif packet_type == PACKET_TYPES.INIT:  # Device might have restarted attempt a reconnect
             logging.warning("NRF24USB Device appears to have reset!")
             self.connected = False

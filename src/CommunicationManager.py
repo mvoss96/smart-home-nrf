@@ -260,7 +260,7 @@ class CommunicationManager:
                         msg = HostMessage(
                             uuid=self.db_manager.uuid, msg_type=MSG_TYPES.SET, data=set_message.get_raw()
                         )
-                        logger.info(f"sending SET {key} {value} to device {uuid}")
+                        logger.debug(f"sending SET {key} {value} to device {uuid}")
                         res = self.device_manager.send_msg_to_device(id, msg.get_raw())
                         if res == None:
                             logger.info(
@@ -280,7 +280,7 @@ class CommunicationManager:
                             if self.wait_for_status_acks:
                                 self.wait_for_status.add(id)
                             keys_updated.append((id, uuid_string, key, value))
-                        time.sleep(0.05)
+                        time.sleep(0.1)
 
                     for key in keys_unsupported:
                         # Only remove if values have not changed:
@@ -296,18 +296,15 @@ class CommunicationManager:
                 if device is None:
                     continue
                 # Only remove if values have not changed:
-                for i in range(5):
-                    if value == self.parameter_buffer[uuid_string].get(key):
-                        # print("wait for status from id", id)
-                        if id not in self.wait_for_status:
-                            # print(f"delete {key}")
-                            del self.parameter_buffer[uuid_string][key]
-                            # self.db_manager.update_device_in_db(device)
-                            keys_updated.remove(entry)
-                            break
-                        time.sleep(0.1)
+                if value == self.parameter_buffer[uuid_string].get(key):
+                    # print("wait for status from id", id)
+                    if id not in self.wait_for_status:
+                        del self.parameter_buffer[uuid_string][key]
+                        # self.db_manager.update_device_in_db(device)
+                        keys_updated.remove(entry)
+                        break
                 if id in self.wait_for_status:
-                    logger.warning(f"did not receive status update in time from device {uuid_string}")
+                    logger.warning(f"did not receive status update in time from device {device.get('name')} {uuid_string}")
 
         logger.info("Stopped update_all_devices")
 
