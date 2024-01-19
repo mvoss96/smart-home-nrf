@@ -213,10 +213,11 @@ class DBManager:
             if device:
                 if status == True:
                     device["offline"] = True
-                elif status == False and "offline" in device:
-                    del device["offline"]
-                
+                else:
+                    device["offline"] = False
                 self.update_device_in_db(device)
+            else:
+                logger.error(f"Device with uuid {device_uuid} not found in DB") 
         except Exception as e:
             logger.error(f"Unexpected error for device in DB: {e}")
 

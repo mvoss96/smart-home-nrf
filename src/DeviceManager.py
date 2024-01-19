@@ -31,6 +31,9 @@ class DeviceManager:
         while not self.device.connected:
             if time.time() - start_time > 5:
                 raise TimeoutError("NRF24Device could not be started")
+            
+    def stop(self):
+        self.device.stop_read_loop()
 
     @classmethod
     def get_supported_device(cls, device_type: str) -> Optional[Type[DeviceStatus]]:

@@ -296,12 +296,13 @@ class CommunicationManager:
                     self.db_manager.update_device_offline_status(uuid, True)
                     self.parameter_buffer.pop(uuid_string)
                 return  # Skip Device
-            else:  # Send Successfull
+            elif type(res) == list:  # Send Successfull
+                print("wait for status from id", id)
                 if uuid_string in self.failed_sends:
                     del self.failed_sends[uuid_string]
                 if self.wait_for_status_acks:
                     self.wait_for_status.add(id)
-                if "offline" in device:
+                if device.get("offline", False):
                     self.db_manager.update_device_offline_status(uuid, False)
                 keys_updated.append((key, value))
             time.sleep(0.1)  # Wait for message to process

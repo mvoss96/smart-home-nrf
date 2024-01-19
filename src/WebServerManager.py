@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, render_template, request, make_response, Response
 from flask_cors import CORS
 from flask_httpauth import HTTPBasicAuth
-from threading import Thread
+from threading import Thread, Event
 from src.DBManager import DBManager
 from src.CommunicationManager import CommunicationManager
 import json
@@ -13,7 +13,7 @@ logger = setup_logger()
 
 
 class WebServerManager:
-    def __init__(self, db_manager: DBManager, comm_manager: CommunicationManager):
+    def __init__(self, db_manager: DBManager, comm_manager: CommunicationManager, restart_flag: Event):
         # Initialize Flask app
         self.app = Flask(__name__)
         self.app.config["TEMPLATES_AUTO_RELOAD"] = True
@@ -31,6 +31,7 @@ class WebServerManager:
         #     },
         # )
         self.db_manager = db_manager
+        self.restart_flag = restart_flag
         self.comm_manager = comm_manager
         self.server = None
 
@@ -46,6 +47,15 @@ class WebServerManager:
             Endpoint to serve the home page.
             """
             return render_template("index.html")
+        
+        @self.app.route("/restart", methods=["POST"])
+        @self.auth.login_required
+        def restart():
+            """
+            Endpoint to restart the server.
+            """
+            self.restart_flag.set()
+            return Response()
 
         @self.app.route("/stream")
         @self.auth.login_required

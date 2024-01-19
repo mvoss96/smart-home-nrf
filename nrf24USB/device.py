@@ -230,13 +230,14 @@ class NRF24Device:
             self.stop_event.set()  # Set the stop event
             if threading.current_thread() != self.read_thread:
                 self.read_thread.join()  # Wait for the thread to finish if called from another thread
+        try:
+            self.serial_port.close()
+        except AttributeError:
+            pass
 
     def __del__(self):
         """
         Stops the read loop and closes the serial port when the instance is destructed.
         """
-        try:
-            self.stop_read_loop()
-            self.serial_port.close()
-        except AttributeError:
-            pass
+        self.stop_read_loop()
+        
