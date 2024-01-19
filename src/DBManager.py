@@ -202,6 +202,24 @@ class DBManager:
         except Exception as e:
             logger.error(f"Unexpected error while removing device in DB: {e}")
 
+    def update_device_offline_status(self, device_uuid: list[int], status: bool):
+        """
+        Set a Devices online status
+        """
+        logger.info(f"Set Offline Status of Device with uuid {device_uuid} to {status}")
+        try:
+            # Find the device with the given UUID
+            device = self.search_device_in_db(device_uuid)
+            if device:
+                if status == True:
+                    device["offline"] = True
+                elif status == False and "offline" in device:
+                    del device["offline"]
+                
+                self.update_device_in_db(device)
+        except Exception as e:
+            logger.error(f"Unexpected error for device in DB: {e}")
+
     def update_device_name(self, device_uuid: list[int], new_name: str):
         """
         Change the name of a Device using the given UUID
