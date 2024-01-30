@@ -9,7 +9,7 @@
 #define NUM_LED_CHANNELS                                2                           // How many LED channels
 #define DEVICE_BATTERY_POWERED                          0                           // 0 for stationary, 1 for Battery
 #define DEVICE_BATTERY_FULL_VOLTAGE                     3000                        // In mV
-#define DEVICE_BATTERY_EMPTY_VOLTAGE                    1800                        // In mV
+#define DEVICE_BATTERY_EMPTY_VOLTAGE                    2200                        // In mV
 #define VREFINT                                         1113                        // In mV must be calibrated
 #define DEVICE_UUID                                     {0xB8, 0x66, 0xA2, 0xD4}    // Unique 4 byte UUID
 #define OUTPUT_POWER_LIMIT                              255*1                       // Maximum combined value of all channels
@@ -18,7 +18,7 @@
 #define NUM_SEND_RETRIES                                2                           // Must be >= 1
 
 
-#define FIRMWARE_VERSION                                0x01
+#define FIRMWARE_VERSION                                0x02
 #define RADIO_CHANNEL                                   101
 #define INITIAL_RADIO_ID                                255
 #define SERVER_RADIO_ID                                 0

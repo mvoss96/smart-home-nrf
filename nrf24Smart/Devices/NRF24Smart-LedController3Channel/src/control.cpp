@@ -41,27 +41,25 @@ void setOutput()
         return;
     }
 
+    // If power is off, set output to LOW
+    if (!status.power)
+    {
+        disableOutput();
+        return;
+    }
+
     // Calculate the power scaling factor
-    // Serial.print("total channel: ");
-    // Serial.println(channelTotal);
+    Serial.print("total channel: ");
+    Serial.println(channelTotal);
     status.powerScale = min(1, (float)outputPowerLimit / channelTotal);
-    // Serial.print("power scale: ");
-    // Serial.println(status.powerScale);
+    Serial.print("power scale: ");
+    Serial.println(status.powerScale);
 
     // Loop over each color channel
     for (int i = 0; i < NUM_LED_CHANNELS; i++)
     {
-        // If power is off, set output to LOW
-        if (!status.power)
-        {
-            disableOutput();
-        }
-        // Else, set output according to brightness, color and power limit
-        else if (channels[i]) // make sure pointer isn't NULL before dereferencing
-        {
-            uint8_t value = *channels[i] * status.powerScale * (float)status.brightness / 255;
-            analogWrite(pins[i], value);
-        }
+        uint8_t value = *channels[i] * status.powerScale * (float)status.brightness / 255;
+        analogWrite(pins[i], value);
     }
 }
 
@@ -142,7 +140,7 @@ void setRGB(uint8_t r, uint8_t g, uint8_t b)
     }
 }
 
-void setStatus(const uint8_t *data, uint8_t length)
+void _setStatus(const uint8_t *data, uint8_t length)
 {
     // Null data check
     if (data == nullptr)
@@ -266,10 +264,13 @@ void setStatus(const uint8_t *data, uint8_t length)
         }
         break;
     default:
-    {
         Serial.println(F("ERROR: Unsupported changeType!"));
     }
-    }
+}
+
+void setStatus(const uint8_t *data, uint8_t length)
+{
+    _setStatus(data, length);
     setOutput();
 }
 
