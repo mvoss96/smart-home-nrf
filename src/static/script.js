@@ -36,6 +36,7 @@ async function checkLogin() {
     if (loginSuccessful) {
         setError("");
         document.getElementById('log-container').style.display = "block";
+        document.getElementById('rebootButton').style.display = "block";
         fetchAndPopulate();
         fetchLogs();
         setInterval(fetchAndPopulate, 3000);
@@ -72,10 +73,19 @@ async function fetchAndPopulate() {
 function populateTable(device, table) {
     console.log(device)
     let row = table.insertRow();
-    row.insertCell().innerHTML = `<span id="deviceName_${device.uuid}" class="device-name">
+
+    let cellContent = `<span id="deviceName_${device.uuid}" class="device-name">
                 ID:${device.id}<br>${device.name}<br><span class="small-font">(${device.type})</span>
                 </span><br><button onclick="renameDevice('${device.uuid}')">Rename</button>
                 <button onclick="removeDevice('${device.uuid}')">Remove</button>`;
+
+    // If the device is offline, add the "Offline" text in red.
+    if (device.offline) {
+        cellContent += '<br><span style="color: red;">Offline</span>';
+    }
+
+    // Set the content to the first cell of the row.
+    row.insertCell().innerHTML = cellContent;
 
     let statusList = document.createElement('ul');
     let intervalElement = document.createElement('li');
@@ -89,7 +99,7 @@ function populateTable(device, table) {
     }
     let statusCell = row.insertCell();
     statusCell.appendChild(statusList);
-    row.insertCell().textContent = device.connection_health ? device.connection_health * 100 + '%' : 'N/A';
+    row.insertCell().textContent = device.connection_health ? Math.round(device.connection_health * 100) + '%' : 'N/A';
     row.insertCell().textContent = device.battery_powered ? Math.round(device.battery_level / 2.55) + '%' : 'N/A';
     let uuidHex = device.uuid.map(num => num.toString(16).toUpperCase()).join(', '); // Converts each number to hex and joins them
     row.insertCell().innerHTML = device.uuid.join(':') + "<br>{" + uuidHex + "}";
@@ -117,6 +127,26 @@ async function renameDevice(uuid) {
         } catch (error) {
             console.error('Error:', error);
         }
+    }
+}
+
+async function restart() {
+    if (confirm("Do you want to restart the service?") === false) { return; }
+    const requestHeaders = new Headers(headers);
+    requestHeaders.set('Content-Type', 'application/json');
+    const rebootOptions = {
+        method: 'POST',
+        headers: requestHeaders,
+        body: ""
+    };
+    try {
+        const response = await fetch(`${url}/restart`, rebootOptions);
+        if (!response.ok) {
+            throw new Error("HTTP error " + response.status);
+        }
+        await fetchAndPopulate(); // Await the fetchAndPopulate function
+    } catch (error) {
+        console.error('Error:', error);
     }
 }
 

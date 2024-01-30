@@ -3,6 +3,7 @@ from src.DBManager import DBManager
 from src.CommunicationManager import CommunicationManager
 from src.DeviceManager import DeviceManager
 from src.Logger import setup_logger
+from threading import Event
 import time
 import re
 import json
@@ -101,6 +102,7 @@ class MQTTManager:
         self,
         db_manager: DBManager,
         comm_manager: CommunicationManager,
+        shutdown_flag : Event,
         broker_address="localhost",
         port=1883,
         username=None,
@@ -108,6 +110,7 @@ class MQTTManager:
     ):
         self.db_manager = db_manager
         self.comm_manager = comm_manager
+        self.shutdown_flag = shutdown_flag
         self.client = mqtt.Client()
         if username and password:
             self.client.username_pw_set(username, password)
@@ -166,7 +169,7 @@ class MQTTManager:
     def run(self):
         self.client.loop_start()
         self.client.subscribe(f"{root_topic}/devices/+/set/#")
-        while True:
+        while not self.shutdown_flag.is_set():
             # Handle all status changes
             while db_change := self.db_manager.get_changes():
                 try:
@@ -200,6 +203,9 @@ class MQTTManager:
                 self.client.publish(topic, event)
 
             time.sleep(0.1)
+
+        logger.info("MQTTManager stopped")
+        self.stop()
 
     def stop(self):
         self.client.loop_stop()
