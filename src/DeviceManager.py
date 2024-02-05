@@ -83,6 +83,7 @@ class DeviceManager:
         logger.info(f"New device ID:{new_id}")
 
         # Send new ID to device
+        time.sleep(0.5)
         to_send_msg = HostMessage(uuid=self.db_manager.uuid, msg_type=MSG_TYPES.INIT, data=[new_id])
         logger.info(f"Sending new ID to {msg.ID} with data: {to_send_msg.get_raw()}")
         if self.send_msg_to_device(msg.ID, to_send_msg.get_raw()) == None:

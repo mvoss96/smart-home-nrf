@@ -220,6 +220,8 @@ class CommunicationManager:
                 self.handle_remote_message(msg)
             else:
                 msg = DeviceMessage(data)
+                uuid = msg.UUID
+                self.db_manager.update_device_offline_status(uuid, False)
                 if not msg.is_valid:
                     logger.warning(f"invalid message! {msg.raw_data}")
                     continue
@@ -228,22 +230,22 @@ class CommunicationManager:
                     self.handle_init_mesage(msg)
                 elif msg.MSG_TYPE == MSG_TYPES.BOOT.value:
                     self.handle_boot_message(msg)
-
-                uuid_string = str(msg.UUID)
-                if (
-                    uuid_string in self.msg_nums
-                    and msg.MSG_NUM == self.msg_nums[uuid_string][-1]
-                ):
-                    logger.warning(
-                        f"Ignore msg with repeated msg_num {msg.MSG_NUM} for {uuid_string}"
-                    )
-                    continue
-                self.update_connection_health(msg.UUID, msg.MSG_NUM)
-
-                if msg.MSG_TYPE in (MSG_TYPES.STATUS.value, MSG_TYPES.OK.value):
-                    self.handle_status_message(msg)
                 else:
-                    logger.warning(f"->Unknown DeviceMessage {msg}")
+                    uuid_string = str(uuid)
+                    if (
+                        uuid_string in self.msg_nums
+                        and msg.MSG_NUM == self.msg_nums[uuid_string][-1]
+                    ):
+                        logger.warning(
+                            f"Ignore msg with repeated msg_num {msg.MSG_NUM} for {uuid_string}"
+                        )
+                        continue
+                    self.update_connection_health(uuid, msg.MSG_NUM)
+
+                    if msg.MSG_TYPE in (MSG_TYPES.STATUS.value, MSG_TYPES.OK.value):
+                        self.handle_status_message(msg)
+                    else:
+                        logger.warning(f"->Unknown DeviceMessage {msg}")
 
         logger.info("Stopped listen")
 
@@ -297,15 +299,14 @@ class CommunicationManager:
                     self.parameter_buffer.pop(uuid_string)
                 return  # Skip Device
             elif type(res) == list:  # Send Successfull
-                print("wait for status from id", id)
                 if uuid_string in self.failed_sends:
                     del self.failed_sends[uuid_string]
                 if self.wait_for_status_acks:
                     self.wait_for_status.add(id)
-                if device.get("offline", False):
                     self.db_manager.update_device_offline_status(uuid, False)
                 keys_updated.append((key, value))
             time.sleep(0.1)  # Wait for message to process
+
 
         # Remove unsupported parameters
         for k in keys_unsupported:
@@ -314,16 +315,17 @@ class CommunicationManager:
                 self.parameter_buffer[uuid_string].pop(k)
 
         # Remove successfully send parameters
+        # Only remove if values have not changed:
         for key, value in keys_updated:
-            # Only remove if values have not changed:
             if value == self.parameter_buffer[uuid_string].get(key):
-                #print("wait for status from id", id)
-                if id not in self.wait_for_status:
-                    self.parameter_buffer[uuid_string].pop(key)
-                else:
-                    logger.warning(
-                        f"did not receive status update in time from device {device.get('name')} {uuid_string}"
-                    )
+                self.parameter_buffer[uuid_string].pop(key)
+                
+
+    def wait_for_status_update(self, key: str, uuid_string : str, id: int) -> bool:
+            print(f"wait for status from id", id)
+            if id not in self.wait_for_status:
+                return True
+            return False
 
     def update_all_devices(self):
         """
