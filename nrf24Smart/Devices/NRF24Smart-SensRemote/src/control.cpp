@@ -138,6 +138,7 @@ void checkForSleep()
             if (wakeupcouter >= NUM_WAKEUP_FOR_STATUS && !wakeupByInterrupt)
             {
                 readSensor();
+                delay(10);
                 sendStatus();
                 wakeupcouter = 0;
                 return;

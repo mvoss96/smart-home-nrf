@@ -51,13 +51,25 @@ class NRF24Device:
             logging.error(f"Could not connect to Serial Device {port}:{baudrate}")
             self.error = True
 
+    def wait_for_init(self):
+        """
+        Starts the read loop and waits for a successfull connection
+        """
+        self.start_read_loop()
+        start_time= time.time()
+        while (not self.connected):
+            time.sleep(0.1)
+            if time.time() -start_time > 3:
+                raise TimeoutError("Connection Timeout")
+
+
     def start_read_loop(self):
         """
         Starts the read loop in a new thread. If the read thread is already running, stops it before starting a new one.
         """
         if self.read_thread is not None and self.read_thread.is_alive():
             self.stop_read_loop()
-        self.read_thread = threading.Thread(target=self.read_loop, name="read_loop")
+        self.read_thread = threading.Thread(target=self.read_loop, name="read_loop", daemon=True)
         self.read_thread.start()  # Start a new thread that runs the read_loop function
 
     def initialize_device(self):

@@ -14,5 +14,5 @@
 #define INIT_MSG_PERIOD 5000
 
 const uint8_t FIRMWARE_VERSION = 2;
-const uint8_t UUID[4] = {0x85, 0x83, 0xF7, 0x7E}; // 32bit UUID must be unique
+const uint8_t UUID[4] = {0x82, 0x83, 0xF5, 0x7E}; // 32bit UUID must be unique
 

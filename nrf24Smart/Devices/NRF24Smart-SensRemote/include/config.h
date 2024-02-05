@@ -6,7 +6,7 @@
 #define DEVICE_TYPE                                     "SensRemote"                // Max 20 characters
 #define DEVICE_BATTERY_POWERED                          1                           // 0 for Stationary, 1 for Battery
 #define DEVICE_BATTERY_FULL_VOLTAGE                     3000                        // In mV
-#define DEVICE_BATTERY_EMPTY_VOLTAGE                    1800                        // In mV
+#define DEVICE_BATTERY_EMPTY_VOLTAGE                    2300                        // In mV
 #define VREFINT                                         1113                        // In mV must be calibrated
 #define DEVICE_UUID                                     {0xD2, 0xF3, 0xB5, 0x12}    // Unique 4 byte UUID
 #define LED_BLINK_ONMESSAGE                             0                           // 1 for enable, 0 for disable
