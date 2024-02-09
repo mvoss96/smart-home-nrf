@@ -5,11 +5,12 @@ from typing import Type, Optional
 from src.DBManager import DBManager
 from threading import Lock
 from src.Logger import setup_logger
+import os
 
 logger = setup_logger()
 
 class DeviceManager:
-    def __init__(self, db_manager: DBManager):
+    def __init__(self, db_manager: DBManager, device_port = None, nrf_channel = 101):
         # Initialize the lock
         self.comm_lock = Lock()
 
@@ -19,7 +20,14 @@ class DeviceManager:
         # Initializing the NRF24Device
         #self.device = NRF24Device("/dev/NRF24USB", channel=101, address=0)
         #self.device = NRF24Device("COM3", channel=101, address=0)
-        self.device = NRF24Device("/dev/ttyUSB0", channel=101, address=0)
+
+        if device_port is None:
+            if os.name == "nt": # Windows
+                raise ValueError("Device port must be specified for Windows")
+            else:
+                device_port = "/dev/NRF24USB"
+
+        self.device = NRF24Device(device_port, channel=nrf_channel, address=0)
         if self.device.error:
             raise ConnectionError("Error with the NRF24USB device")
 
