@@ -1,0 +1,9 @@
+colorlog==6.7.0
+Flask==2.3.2
+Flask_Cors==4.0.0
+Flask_HTTPAuth==4.8.0
+junit_xml==1.9
+paho_mqtt==1.6.1
+pyparsing==3.1.1
+pyserial==3.5
+tinydb==4.8.0
