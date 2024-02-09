@@ -28,6 +28,10 @@ void setPinModes()
   // Enable interrupt on PIN_BTN1
   PCICR |= (1 << PCIE1);   // Aktivate Interrupts on Port C (analog)
   PCMSK1 |= (1 << PCINT4); // Aktivate Pin Change ISR for A4
+
+#ifdef NRF_USE_IRQ
+  attachInterrupt(digitalPinToInterrupt(PIN_RADIO_IRQ), radioInterrupt, FALLING);
+#endif
 }
 
 void setup()
@@ -43,9 +47,6 @@ void setup()
   connectToServer();
   printEEPROM(5);
   delay(1000);
-#ifdef NRF_USE_IRQ
-  attachInterrupt(digitalPinToInterrupt(PIN_RADIO_IRQ), radioInterrupt, FALLING);
-#endif
   setOutput();
 }
 

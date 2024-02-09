@@ -10,7 +10,6 @@ struct Status{
     uint8_t ch_3 = (NUM_LED_CHANNELS >= 3) ? 255 : 0;
     uint8_t num_channels = NUM_LED_CHANNELS;
     float   powerScale = 1.0;
-   
 };
 
 extern Status status;
