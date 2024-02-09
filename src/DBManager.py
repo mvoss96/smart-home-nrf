@@ -204,22 +204,26 @@ class DBManager:
 
     def update_device_offline_status(self, device_uuid: list[int], status: bool):
         """
-        Set a Devices online status
+        Set a Device's online status.
+
+        :param device_uuid: The UUID of the device.
+        :param status: The offline status to set (True for offline, False for online).
         """
-        logger.info(f"Set Offline Status of Device with uuid {device_uuid} to {status}")
         try:
             # Find the device with the given UUID
             device = self.search_device_in_db(device_uuid)
             if device:
-                if status == True:
-                    device["offline"] = True
-                else:
-                    device["offline"] = False
-                self.update_device_in_db(device)
+                # Check if 'offline' key exists and its value; if not, consider it a change
+                current_status = device.get("offline")
+                if current_status is None or current_status != status:
+                    logger.info(f"Set Offline Status of Device with uuid {device_uuid} to {status}")
+                    device["offline"] = status
+                    self.update_device_in_db(device)
             else:
-                logger.error(f"Device with uuid {device_uuid} not found in DB") 
+                logger.error(f"Device with uuid {device_uuid} not found in DB")
         except Exception as e:
-            logger.error(f"Unexpected error for device in DB: {e}")
+            logger.error(f"Unexpected error for device in DB: {e}, {type(e).__name__}")
+
 
     def update_device_name(self, device_uuid: list[int], new_name: str):
         """

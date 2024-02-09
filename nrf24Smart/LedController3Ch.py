@@ -18,7 +18,7 @@ class LedController3Ch(DeviceStatus):
         "cct_mired",  # virtual
         "brightness_percent",  # virtual
     ]
-    supported_versions = [1]
+    supported_versions = [1,2]
     min_cct = 2500
     max_cct = 6500
     mqtt_discovery_paramters = [

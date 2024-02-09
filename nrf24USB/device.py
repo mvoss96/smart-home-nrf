@@ -157,8 +157,9 @@ class NRF24Device:
         # Wait for Device to respond
         start_time = time.time()
         self.last_send_response = None
+        time.sleep(0.1)
         while self.last_send_response is None:
-            time.sleep(0.1)
+            #time.sleep(0.1)
             if time.time() - start_time > 0.5:
                 logging.error(f"Timeout while waiting for response from NRF24USB device")
                 return None
