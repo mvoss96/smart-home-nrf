@@ -10,6 +10,8 @@ bool serverConnected = false;
 NRFLite _radio;
 unsigned long statusTimer = 0;
 volatile uint8_t _dataWasReceived;
+static volatile bool _SendFailed = false;
+static volatile bool _SendSuccess = false;
 
 uint8_t ClientPacket::msgNum = 0;
 
@@ -46,7 +48,19 @@ uint8_t nrfSend(uint8_t toRadioId, void *data, uint8_t length, NRFLite::SendType
         {
             digitalWrite(PIN_LED1, LOW);
         }
+#ifdef NRF_USE_IRQ
+        _radio.startSend(toRadioId, data, length, sendType);
+        while (!_SendSuccess && !_SendFailed)
+        {
+            // Wait for send to complete
+        }
+        res = _SendSuccess;
+        _SendSuccess = false;
+        _SendFailed = false;
+        _radio.startRx();
+#else
         res = _radio.send(toRadioId, data, length, sendType);
+#endif
         if (LED_BLINK_ONMESSAGE)
         {
             digitalWrite(PIN_LED1, HIGH);
@@ -58,9 +72,6 @@ uint8_t nrfSend(uint8_t toRadioId, void *data, uint8_t length, NRFLite::SendType
         Serial.print(F(" ... "));
         delay(200);
     }
-#ifdef NRF_USE_IRQ
-    _radio.startRx();
-#endif
     return res;
 }
 
@@ -217,10 +228,19 @@ void radioInterrupt()
     // txOk = the radio successfully transmitted data.
     // txFail = the radio failed to transmit data.
     // rxReady = the radio received data.
-
     if (rxReady)
     {
         _dataWasReceived = true;
+    }
+    else if (txOk)
+    {
+        _SendSuccess = true;
+        _SendFailed = false;
+    }
+    else if (txFail)
+    {
+        _SendFailed = true;
+        _SendSuccess = false;
     }
 }
 

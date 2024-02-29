@@ -26,10 +26,12 @@ void radioInterrupt()
     else if (txOk)
     {
         _SendSuccess = true;
+        _SendFailed = false;
     }
     else if (txFail)
     {
         _SendFailed = true;
+        _SendSuccess = false;
     }
 }
 
@@ -150,6 +152,8 @@ bool nrfSend(uint8_t destination, void *data, uint8_t length, bool requireAck)
         // Wait for send to complete
     }
     res = _SendSuccess;
+    _SendSuccess = false;
+    _SendFailed = false;
     _radio.startRx();
 #else
     res = _radio.send(destination, data, length, requireAck ? NRFLite::REQUIRE_ACK : NRFLite::NO_ACK);
