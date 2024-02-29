@@ -3,16 +3,21 @@
 
 void printGreetingMessage()
 {
-  static const uint8_t uuid[] = DEVICE_UUID;
-  Serial.print(DEVICE_TYPE);
-  Serial.print(" [");
-  for (size_t i = 0; i < 4; i++)
-  {
-    Serial.print(uuid[i], HEX);
-    if (i < 3)
-    {
-      Serial.print(" ");
-    }
-  }
-  Serial.println("] ");
+  Serial.println(DEVICE_TYPE);
 }
+
+#ifdef __AVR__
+#include <avr/wdt.h>
+
+void softwareReset()
+{
+  // enable the wdt for the shortest possible setting
+  wdt_enable(WDTO_15MS);
+  // wait for the prescaller time to expire
+  // without sending the reset signal by using
+  // the wdt_reset() method
+  while (1)
+  {
+  }
+}
+#endif

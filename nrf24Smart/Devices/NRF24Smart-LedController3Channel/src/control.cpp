@@ -1,9 +1,13 @@
 #include "control.h"
 #include "config.h"
 #include "RFcomm.h"
+#include "status.h"
 
 // Status object to keep track of various parameters
 Status status;
+
+// Device Settings object to keep track of various parameters
+DeviceSettings deviceSettings;
 
 // Pointers to R, G, B channels in status object
 uint8_t *channels[] = {&status.ch_1, &status.ch_2, &status.ch_3};
@@ -12,7 +16,6 @@ uint8_t *channels[] = {&status.ch_1, &status.ch_2, &status.ch_3};
 int pins[] = {PIN_OUTPUT_R, PIN_OUTPUT_G, PIN_OUTPUT_B};
 
 // Config variables
-unsigned int outputPowerLimit = OUTPUT_POWER_LIMIT;
 uint8_t statusInterval = STATUS_INTERVAL_TIME;
 
 void disableOutput()
@@ -29,7 +32,7 @@ void setOutput()
     int channelTotal = 0;
 
     // Calculate the channelTotal
-    for (int i = 0; i < NUM_LED_CHANNELS; i++)
+    for (int i = 0; i < deviceSettings.numLedChannels; i++)
     {
         channelTotal += *channels[i];
     }
@@ -51,12 +54,12 @@ void setOutput()
     // Calculate the power scaling factor
     Serial.print("total channel: ");
     Serial.println(channelTotal);
-    status.powerScale = min(1, (float)outputPowerLimit / channelTotal);
+    status.powerScale = min(1, (float)deviceSettings.outputPowerLimit / channelTotal);
     Serial.print("power scale: ");
     Serial.println(status.powerScale);
 
     // Loop over each color channel
-    for (int i = 0; i < NUM_LED_CHANNELS; i++)
+    for (int i = 0; i < deviceSettings.numLedChannels; i++)
     {
         uint8_t value = *channels[i] * status.powerScale * (float)status.brightness / 255;
         analogWrite(pins[i], value);
@@ -93,7 +96,7 @@ void increaseBrightness(uint8_t val)
 // Function to decrease brightness, taking care not to go below 0
 void decreaseBrightness(uint8_t val)
 {
-    status.brightness = max(MIN_BRIGHTNESS, status.brightness - val);
+    status.brightness = max(deviceSettings.minBrightness, status.brightness - val);
 }
 
 // Function to set a specific color channel to a given value
@@ -240,7 +243,7 @@ void _setStatus(const uint8_t *data, uint8_t length)
         {
             if (msg.valueSize == 4)
             {
-                outputPowerLimit = ((uint32_t)msg.newValue[0] << 24) | ((uint32_t)msg.newValue[1] << 16) |
+                deviceSettings.outputPowerLimit = ((uint32_t)msg.newValue[0] << 24) | ((uint32_t)msg.newValue[1] << 16) |
                                    ((uint32_t)msg.newValue[2] << 8) | ((uint32_t)msg.newValue[3]);
             }
             else
@@ -284,7 +287,7 @@ void setRemote(const uint8_t layer, const uint8_t value)
             setPower(!status.power);
             break;
         case 1:
-            for (int i = 0; i < NUM_LED_CHANNELS; i++)
+            for (int i = 0; i < deviceSettings.numLedChannels; i++)
             {
                 setChannel(i, 255);
             }
@@ -304,11 +307,11 @@ void setRemote(const uint8_t layer, const uint8_t value)
     {
         if (value == (uint8_t)AXIS_DIRS::UP)
         {
-            increaseBrightness(CONTROL_STEPS);
+            increaseBrightness(deviceSettings.controlSteps);
         }
         else if (value == (uint8_t)AXIS_DIRS::DOWN)
         {
-            decreaseBrightness(CONTROL_STEPS);
+            decreaseBrightness(deviceSettings.controlSteps);
         }
         else
         {
@@ -316,17 +319,17 @@ void setRemote(const uint8_t layer, const uint8_t value)
             Serial.println(value);
         }
     }
-    else if (layer == (uint8_t)LAYERS::AXIS2 && NUM_LED_CHANNELS == 2)
+    else if (layer == (uint8_t)LAYERS::AXIS2 && deviceSettings.numLedChannels == 2)
     {
         if (value == (uint8_t)AXIS_DIRS::UP)
         {
-            increaseChannel(0, CONTROL_STEPS);
-            decreaseChannel(1, CONTROL_STEPS);
+            increaseChannel(0, deviceSettings.controlSteps);
+            decreaseChannel(1, deviceSettings.controlSteps);
         }
         else if (value == (uint8_t)AXIS_DIRS::DOWN)
         {
-            increaseChannel(1, CONTROL_STEPS);
-            decreaseChannel(0, CONTROL_STEPS);
+            increaseChannel(1, deviceSettings.controlSteps);
+            decreaseChannel(0, deviceSettings.controlSteps);
         }
         else
         {
