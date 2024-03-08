@@ -220,11 +220,12 @@ class CommunicationManager:
                 self.handle_remote_message(msg)
             else:
                 msg = DeviceMessage(data)
-                uuid = msg.UUID
-                self.db_manager.update_device_offline_status(uuid, False)
+                
                 if not msg.is_valid:
                     logger.warning(f"invalid message! {msg.raw_data}")
                     continue
+                uuid = msg.UUID
+                self.db_manager.update_device_offline_status(uuid, False)
 
                 if msg.MSG_TYPE == MSG_TYPES.INIT.value:
                     self.handle_init_mesage(msg)

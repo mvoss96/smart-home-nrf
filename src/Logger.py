@@ -90,7 +90,7 @@ def setup_logger():
     queue_handler.setFormatter(json_formatter)
 
     # Add the handlers to the logger
-    logger.addHandler(file_handler)
+    #logger.addHandler(file_handler)
     logger.addHandler(console_handler)
     logger.addHandler(queue_handler)
 
