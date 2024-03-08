@@ -1,13 +1,8 @@
-#include <Arduino.h>
-#include <SPI.h>
-#include <NRFLite.h>
-#include "comm.h"
+#include "serialComm.h"
+#include "rfComm.h"
 #include "blinkcodes.h"
 
-NRFLite _radio; // The nrflite radio instance
-
 bool clearTextMode = true;
-bool blinkOnMessage = true;
 uint8_t serialBuffer[SERIAL_BUFFER_SIZE];
 
 /**
@@ -39,8 +34,8 @@ uint8_t readDataFromSerial()
                 messageStarted = false;
                 serialBuffer[received_bytes] = '\0'; // Null terminate the buffer
                 received_bytes = 0;
-                //Serial.print("received_bytes: ");
-                //Serial.println(ret);
+                // Serial.print("received_bytes: ");
+                // Serial.println(ret);
                 return ret;
             }
             received_bytes = 0; // Reset for a new message
@@ -96,7 +91,7 @@ void waitForHost()
                     blinkOnMessage = msg.getData()[3];
                 }
 
-                if (!testConnection(channel, address))
+                if (!radioInit(channel, address))
                 {
                     sendStringMessage("NRF CONNECTION ERROR!", MSG_TYPES::ERROR);
                     delay(1000);
@@ -105,6 +100,7 @@ void waitForHost()
                 char msg[64];
                 snprintf(msg, sizeof(msg), "NRF INITIALIZED channel:%d address:%d", channel, address);
                 sendStringMessage(msg, MSG_TYPES::OK);
+                Serial.println(msg);
                 break;
             }
             Serial.println((uint8_t)msg.getType());
@@ -133,7 +129,7 @@ void checkForSerialMsg()
 
     if (msg.getType() == MSG_TYPES::REBOOT)
     {
-        sendStringMessage("REBOOT...", MSG_TYPES::REBOOT);
+        sendStringMessage("", MSG_TYPES::REBOOT);
         delay(100);
         asm("JMP 0");
     }
@@ -145,31 +141,21 @@ void checkForSerialMsg()
     {
         uint8_t destinationID = msg.getData()[0];
         uint8_t requireAck = msg.getData()[1];
-        nrfSend(destinationID, (void *)(msg.getData() + 2), msg.getdataSize() - 2, static_cast<bool>(requireAck));
+        bool res = nrfSend(destinationID, (void *)(msg.getData() + 2), msg.getdataSize() - 2, static_cast<bool>(requireAck));
+        if (res)
+        {
+            sendStringMessage("", MSG_TYPES::OK);
+        }
+        else
+        {
+            sendStringMessage("", MSG_TYPES::ERROR);
+        }
     }
     else
     {
         Serial.println("Unknown Message!");
         msg.print();
     }
-}
-
-/**
- * @brief Test the connection and initialisation to the nrf24 radio
- *
- * @return true if  successfull
- * @return false if uncussefull
- */
-bool testConnection(uint8_t channel, uint8_t address)
-{
-    if (!_radio.init(address, PIN_RADIO_CE, PIN_RADIO_CSN, NRFLite::BITRATE250KBPS, channel))
-    {
-        blinkCode(BLINK_INIT_ERROR);
-        // Serial.println("nrf error");
-        return false;
-    }
-    blinkCode(BLINK_INIT_OK);
-    return true;
 }
 
 /**
@@ -191,7 +177,7 @@ bool isSpecialByte(uint8_t byte)
  * @param data Pointer to the array of data bytes to be sent
  * @param size The number of data bytes to be sent from the array
  */
-void sendPacketBS(uint8_t *data, uint8_t size, MSG_TYPES type)
+void sendSerialPacketBS(uint8_t *data, uint8_t size, MSG_TYPES type)
 {
     Serial.write(static_cast<uint8_t>(type)); // Write the packet type
     for (uint8_t i = 0; i < size; i++)
@@ -215,7 +201,7 @@ void sendPacketBS(uint8_t *data, uint8_t size, MSG_TYPES type)
  * @param data Pointer to the array of data bytes to be sent
  * @param size The number of data bytes to be sent from the array
  */
-void sendPacketClear(uint8_t *data, uint8_t size, MSG_TYPES type)
+void sendSerialPacketClear(uint8_t *data, uint8_t size, MSG_TYPES type)
 {
     Serial.write(msgTypeString(type)); // Write the packet type
     Serial.write(BYTE_SEPERATOR);      // Write data
@@ -245,16 +231,16 @@ void sendPacketClear(uint8_t *data, uint8_t size, MSG_TYPES type)
  * @param data Pointer to the array of data bytes to be sent
  * @param size The number of data bytes to be sent from the array
  */
-void sendPacket(uint8_t *data, uint8_t size, MSG_TYPES type)
+void sendSerialPacket(uint8_t *data, uint8_t size, MSG_TYPES type)
 {
     Serial.write(MESSAGE_SEPERATOR);
     if (clearTextMode)
     {
-        sendPacketClear(data, size, type);
+        sendSerialPacketClear(data, size, type);
     }
     else
     {
-        sendPacketBS(data, size, type);
+        sendSerialPacketBS(data, size, type);
     }
     Serial.write(MESSAGE_SEPERATOR);
     Serial.write('\n');
@@ -268,7 +254,7 @@ void sendPacket(uint8_t *data, uint8_t size, MSG_TYPES type)
  */
 void sendStringMessage(const char *message, MSG_TYPES type)
 {
-    sendPacket((uint8_t *)message, strlen(message), type);
+    sendSerialPacket((uint8_t *)message, strlen(message), type);
 }
 
 /**
@@ -279,81 +265,5 @@ void sendStringMessage(const char *message, MSG_TYPES type)
 void sendInitMessage()
 {
     uint8_t message[5] = {FIRMWARE_VERSION, UUID[0], UUID[1], UUID[2], UUID[3]};
-    sendPacket((uint8_t *)message, 5, MSG_TYPES::INIT);
-}
-
-/**
- * @brief Listen for nrf messages and forward them onto the serial port
- *
- */
-void nrfListen()
-{
-    // Init buffer to 0;
-    uint8_t buf[32] = {0};
-
-    int packetSize = _radio.hasData();
-    if (packetSize > 0)
-    {
-        if (blinkOnMessage)
-        {
-            digitalWrite(PIN_LED2, LOW);
-        }
-        _radio.readData(&buf);
-        sendPacket(buf, packetSize, MSG_TYPES::MSG);
-        digitalWrite(PIN_LED2, HIGH);
-    }
-}
-
-/**
- * @brief Send a message via the nrf radio
- *
- * @param destination The receiver ID
- * @param data A pointer to the message data
- * @param length The lenght of the data in bytes
- * @param requireAck Requiere acknolegement from receiver
- * @return true if the transmission succeeded else false
- */
-bool nrfSend(uint8_t destination, void *data, uint8_t length, bool requireAck)
-{
-    if (blinkOnMessage)
-    {
-        digitalWrite(PIN_LED1, LOW);
-    }
-    bool result = (_radio.send(destination, data, length, requireAck ? NRFLite::REQUIRE_ACK : NRFLite::NO_ACK) == 1);
-    if (!result)
-    {
-        sendStringMessage("SEND ERROR", MSG_TYPES::ERROR);
-    }
-    else
-    {
-        readAckPayload();
-    }
-    digitalWrite(PIN_LED1, HIGH);
-    return result;
-}
-
-/**
- * @brief Read the ack payload data and redirect it over the serial port to the host
- *
- * @return The lenght of the read ackPayload
- */
-uint8_t readAckPayload()
-{
-    uint8_t buff[32];
-    uint8_t length = _radio.hasAckData();
-    while (_radio.hasAckData())
-    {
-        _radio.readData(buff);
-    }
-
-    // Serial.print("length: ");
-    // Serial.print(length);
-    // Serial.print(" ");
-    // for(int i = 0; i< length; i++){
-    //     Serial.print((int)buff[i]);
-    //     Serial.print(" ");
-    // }
-    // Serial.println();
-    sendPacket(buff, length, MSG_TYPES::OK);
-    return length;
+    sendSerialPacket((uint8_t *)message, 5, MSG_TYPES::INIT);
 }

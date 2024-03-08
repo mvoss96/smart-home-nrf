@@ -1,6 +1,5 @@
 #pragma once
-#include <Arduino.h>
-#include "pins.h"
+#include "config.h"
 
 // different blink patters
 enum BlinkCode

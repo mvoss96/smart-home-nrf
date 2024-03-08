@@ -1,0 +1,115 @@
+#include <RF24.h>
+#include "serialComm.h"
+#include "blinkcodes.h"
+
+bool blinkOnMessage = true;
+static bool _dataWasReceived = false;
+
+RF24 radio(PIN_RADIO_CE, PIN_RADIO_CSN);           // Create an RF24 object
+uint8_t radioAddress[5] = {'R', 'F', '2', '4', 0}; // The address of the radio module
+
+void radioInterrupt()
+{
+    _dataWasReceived = true;
+}
+
+bool radioInit(uint8_t channel, uint8_t address)
+{
+    if (!radio.begin())
+    {
+        blinkCode(BLINK_INIT_ERROR);
+        Serial.println("Radio Init Failed!");
+        return false;
+    }
+
+    pinMode(PIN_RADIO_IRQ, INPUT);
+    // let IRQ pin only trigger on "data_ready" event
+    radio.maskIRQ(true, true, false); // args = "data_sent", "data_fail", "data_ready"
+    attachInterrupt(digitalPinToInterrupt(PIN_RADIO_IRQ), radioInterrupt, FALLING);
+
+    // Set the radio address
+    radioAddress[4] = address;
+
+    radio.setChannel(channel);
+    radio.setPALevel(RF24_PA_LOW);          // Adjust power level
+    radio.setAddressWidth(5);               // Set address width
+    radio.setCRCLength(RF24_CRC_16);        // Set CRC length
+    radio.setRetries(5, 15);                // Set the number of retries and delay between retries
+    radio.enableDynamicPayloads();          // Enable dynamic payloads
+    radio.enableAckPayload();               // Enable ack payloads
+    radio.setDataRate(RF24_250KBPS);        // Set data rate
+    radio.openReadingPipe(1, radioAddress); // Open a reading pipe on address, using pipe 1 as an example
+    radio.openWritingPipe(radioAddress);    // Set the writing pipe address
+    radio.startListening();                 // Start listening
+
+    blinkCode(BLINK_INIT_OK);
+    return true;
+}
+
+bool nrfListen(uint8_t *buf, uint8_t &packetSize)
+{
+    if (_dataWasReceived && radio.available())
+    {
+        _dataWasReceived = false;
+        if (blinkOnMessage)
+        {
+            digitalWrite(PIN_LED2, LOW);
+        }
+        packetSize = radio.getDynamicPayloadSize();
+        // Serial.print("packetSize:");
+        // Serial.println(packetSize);
+        radio.read(buf, packetSize); // Read the data into the buffer
+        if (blinkOnMessage)
+        {
+            digitalWrite(PIN_LED2, HIGH);
+        }
+        return true; // Data was received
+    }
+
+    return false; // No data available
+}
+
+bool nrfSend(uint8_t destination, void *data, uint8_t length, bool requireAck)
+{
+    radio.stopListening();         // Stop listening to send data
+    radioAddress[4] = destination; //
+    radio.openWritingPipe(radioAddress);
+    if (blinkOnMessage)
+    {
+        digitalWrite(PIN_LED1, LOW);
+    }
+
+    // Serial.print("sending ");
+    // for (int i = 0; i < length; i++)
+    // {
+    //     Serial.print(((uint8_t*)data)[i]);
+    //     Serial.print(" ");
+    // }
+    // Serial.print("to address:");
+    // Serial.println(destination);
+
+    bool res = radio.write(data, length, !requireAck);
+    /*
+    if (requireAck && radio.isAckPayloadAvailable())
+    {
+        uint8_t ackPayload[32];
+        uint8_t payloadSize = radio.getDynamicPayloadSize();
+        radio.read(&ackPayload, payloadSize);
+        Serial.print("Acknowledgment payload: ");
+        for (int i = 0; i < payloadSize; i++)
+        {
+            Serial.print(ackPayload[i]);
+            Serial.print(" ");
+        }
+        Serial.println();
+    }
+    */
+
+    radio.startListening(); // Resume listening after sending
+    if (blinkOnMessage)
+    {
+        digitalWrite(PIN_LED1, HIGH);
+    }
+
+    return res;
+}

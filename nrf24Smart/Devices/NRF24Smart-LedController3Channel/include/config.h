@@ -1,33 +1,25 @@
 #pragma once
-
-#define ALLOW_REMOTE                                                                // Allow Remote Control
-#define NRF_USE_IRQ                                                                 // Use Interrupt pin
-
-#define DEVICE_TYPE                                     "LedController3Ch"          // Max 20 characters long
-#define MIN_BRIGHTNESS                                  8
-#define CONTROL_STEPS                                   16
-#define NUM_LED_CHANNELS                                2                           // How many LED channels
-#define DEVICE_BATTERY_POWERED                          0                           // 0 for stationary, 1 for Battery
-#define DEVICE_BATTERY_FULL_VOLTAGE                     3000                        // In mV
-#define DEVICE_BATTERY_EMPTY_VOLTAGE                    2200                        // In mV
-#define VREFINT                                         1113                        // In mV must be calibrated
-#define DEVICE_UUID                                     {0xB8, 0x66, 0xA2, 0xD4}    // Unique 4 byte UUID
-#define OUTPUT_POWER_LIMIT                              255*1                       // Maximum combined value of all channels
-#define LED_BLINK_ONMESSAGE                             0                           // 1 for enable, 0 for disable
-#define STATUS_INTERVAL_TIME                            5                           // In seconds
-#define NUM_SEND_RETRIES                                2                           // Must be >= 1
-
+#include "RFconfig.h"
+#include "CONFIG_HARDWARE.h"
 
 #define FIRMWARE_VERSION                                0x02
-#define RADIO_CHANNEL                                   101
-#define INITIAL_RADIO_ID                                255
-#define SERVER_RADIO_ID                                 0
-#define PIN_RADIO_CE                                    9
-#define PIN_RADIO_CSN                                   10
-#define PIN_RADIO_IRQ                                   2
-#define PIN_BTN1                                        A4
-#define PIN_LED1                                        8
-#define PIN_LED2                                        7
-#define PIN_OUTPUT_R                                    6
-#define PIN_OUTPUT_G                                    5
-#define PIN_OUTPUT_B                                    3
+#define DEVICE_TYPE                                     DEVICE_LED_CONTROLLER_3CH
+#define NUM_SEND_RETRIES                                1                           // Must be >= 1
+
+
+// Device Settings will only be written to EEPROM if they are not already present or if forced
+//#define FORCE_DEVICE_SETTINGS_REWRITE                                                    // Force Settings Rewrite
+#define DEVICE_UUID                                     {0xB8, 0x66, 0xA2, 0xD7}    // Unique 4 byte UUID
+#define ALLOW_REMOTE                                    1                           // Allow Remote Control (1 for enable, 0 for disable)
+#define LED_BLINK_ONMESSAGE                             0                           // 1 for enable, 0 for disable
+#define MIN_BRIGHTNESS                                  8                           // Minimum brightness value (0-255)
+#define CONTROL_STEPS                                   16                          // Size of the control steps
+#define NUM_LED_CHANNELS                                1                           // How many LED channels
+#define OUTPUT_POWER_LIMIT                              255*NUM_LED_CHANNELS        // Maximum combined value of all channels
+
+
+
+
+
+
+

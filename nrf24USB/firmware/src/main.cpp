@@ -1,9 +1,6 @@
-#include <Arduino.h>
-#include "pins.h"
-#include "comm.h"
-#include "blinkcodes.h"
-
-// #define TEST_MODE
+#include "config.h"
+#include "rfComm.h"
+#include "serialComm.h"
 
 void setup()
 {
@@ -17,18 +14,19 @@ void setup()
   Serial.flush();
   delay(100);
 
-#ifdef TEST_MODE
-  testConnection(101, 0);
-#else
   waitForHost();
-#endif
 }
 
 void loop()
 {
-  // Listen for nrf messages
-  nrfListen();
+  static uint8_t packetSize = 0;
+  static uint8_t buf[32];
   
+  if (nrfListen(buf, packetSize))
+  {
+    sendSerialPacket(buf, packetSize, MSG_TYPES::MSG);
+  }
+
   // Check if a serial message was received
   checkForSerialMsg();
 }

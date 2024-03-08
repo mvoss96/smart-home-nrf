@@ -5,7 +5,6 @@
 #include "control.h"
 #include "util.h"
 
-void (*resetFunc)(void) = 0;
 volatile bool btnPressed = false;
 
 ISR(PCINT1_vect)
@@ -28,24 +27,25 @@ void setPinModes()
   // Enable interrupt on PIN_BTN1
   PCICR |= (1 << PCIE1);   // Aktivate Interrupts on Port C (analog)
   PCMSK1 |= (1 << PCINT4); // Aktivate Pin Change ISR for A4
+
+#ifdef NRF_USE_IRQ
+  attachInterrupt(digitalPinToInterrupt(PIN_RADIO_IRQ), radioInterrupt, FALLING);
+#endif
+
+  delay(500);
+  digitalWrite(PIN_LED1, HIGH);
+  digitalWrite(PIN_LED2, HIGH);
 }
 
 void setup()
 {
   Serial.begin(115200);
   printGreetingMessage();
-  Serial.println(readVcc());
-  Serial.println(batteryLevel());
   setPinModes();
-  delay(500);
-  digitalWrite(PIN_LED1, HIGH);
-  digitalWrite(PIN_LED2, HIGH);
+  loadDeviceSettingsFromEEPROM();
+  loadServerSettingsFromEEPROM();
   connectToServer();
-  printEEPROM(5);
   delay(1000);
-#ifdef NRF_USE_IRQ
-  attachInterrupt(digitalPinToInterrupt(PIN_RADIO_IRQ), radioInterrupt, FALLING);
-#endif
   setOutput();
 }
 
@@ -55,10 +55,10 @@ void loop()
   if (btnPressed)
   {
     btnPressed = false;
-    resetEEPROM();
+    resetServerSettingsFromEEPROM();
+    Serial.flush();
     delay(1000);
-    Serial.println(F("Connecting to Server:"));
-    connectToServer();
+    softwareReset();
   }
 
   listenForPackets();

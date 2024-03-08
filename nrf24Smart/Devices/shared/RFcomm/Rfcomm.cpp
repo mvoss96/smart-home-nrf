@@ -10,6 +10,8 @@ bool serverConnected = false;
 NRFLite _radio;
 unsigned long statusTimer = 0;
 volatile uint8_t _dataWasReceived;
+static volatile bool _SendFailed = false;
+static volatile bool _SendSuccess = false;
 
 uint8_t ClientPacket::msgNum = 0;
 
@@ -46,7 +48,19 @@ uint8_t nrfSend(uint8_t toRadioId, void *data, uint8_t length, NRFLite::SendType
         {
             digitalWrite(PIN_LED1, LOW);
         }
+#ifdef NRF_USE_IRQ
+        _radio.startSend(toRadioId, data, length, sendType);
+        while (!_SendSuccess && !_SendFailed)
+        {
+            // Wait for send to complete
+        }
+        res = _SendSuccess;
+        _SendSuccess = false;
+        _SendFailed = false;
+        _radio.startRx();
+#else
         res = _radio.send(toRadioId, data, length, sendType);
+#endif
         if (LED_BLINK_ONMESSAGE)
         {
             digitalWrite(PIN_LED1, HIGH);
@@ -58,9 +72,6 @@ uint8_t nrfSend(uint8_t toRadioId, void *data, uint8_t length, NRFLite::SendType
         Serial.print(F(" ... "));
         delay(200);
     }
-#ifdef NRF_USE_IRQ
-    _radio.startRx();
-#endif
     return res;
 }
 
@@ -217,92 +228,104 @@ void radioInterrupt()
     // txOk = the radio successfully transmitted data.
     // txFail = the radio failed to transmit data.
     // rxReady = the radio received data.
-
     if (rxReady)
     {
         _dataWasReceived = true;
     }
+    else if (txOk)
+    {
+        _SendSuccess = true;
+        _SendFailed = false;
+    }
+    else if (txFail)
+    {
+        _SendFailed = true;
+        _SendSuccess = false;
+    }
 }
 
+// Listen for new Messages
 void listenForPackets()
 {
-    // Listen for new Messages
-    uint8_t buf[32] = {0};
-
-#ifdef NRF_USE_IRQ
-    if (_dataWasReceived)
-    {
-        uint8_t packetSize = _radio.hasDataISR();
-        _dataWasReceived = false;
-#else
-    uint8_t packetSize = _radio.hasData();
-    if (packetSize > 0)
-    {
-#endif
-
-        _radio.readData(&buf);
-
-#ifdef ALLOW_REMOTE
-        if (buf[5] == (uint8_t)MSG_TYPES::REMOTE)
-        {
-
-            FromRemotePacket rPck(buf, packetSize);
-            if (!rPck.isValid())
-            {
-                Serial.println(F("WARNING: Invalid RemotePacket received!"));
-                return;
-            }
-
-            Serial.print(F("-> REMOTE message received "));
-            rPck.print();
-            Serial.println();
-            setRemote(rPck.LAYER, rPck.VALUE);
-            return;
-        }
-#endif
-
-        ServerPacket pck(buf, packetSize);
-        if (!pck.isValid())
-        {
-            Serial.println(F("WARNING: Invalid Packet received!"));
-            return;
-        }
-        if (!checkUUID(pck))
-        {
-            Serial.println(F("WARNING: Received Packet UUID mismatch!"));
-            return;
-        }
-        if (LED_BLINK_ONMESSAGE)
-        {
-            digitalWrite(PIN_LED2, LOW);
-        }
-        Serial.print(millis());
-        Serial.print(" ");
-        switch ((MSG_TYPES)pck.getTYPE())
-        {
-        case MSG_TYPES::RESET:
-            Serial.println(F("-> RESET message received..."));
-            resetEEPROM();
-            delay(1000);
-            break;
-        case MSG_TYPES::SET:
-            Serial.print(F("-> SET message received "));
-            pck.printData();
-            Serial.println();
-            setStatus(pck.getDATA(), pck.getSize());
-            sendStatus(true);
-            break;
-        default:
-            Serial.println(F("-> Unsupported message received!"));
-        }
-        if (LED_BLINK_ONMESSAGE)
-        {
-            digitalWrite(PIN_LED2, HIGH);
-        }
-    }
-
+    // Send Status at Interval
     if (statusInterval != 0 && millis() - statusTimer >= statusInterval * 1000)
     {
         sendStatus();
+    }
+
+#ifdef NRF_USE_IRQ
+    if (_dataWasReceived == false)
+        return;
+
+    uint8_t packetSize = _radio.hasDataISR();
+    _dataWasReceived = false;
+#else
+    uint8_t packetSize = _radio.hasData();
+#endif
+
+    uint8_t buf[32] = {0};
+    _radio.readData(&buf); // Read the data into the buffer
+    if (packetSize < 5)
+    {
+        Serial.println(F("WARNING: Invalid Packet size received!"));
+        return;
+    }
+
+#ifdef ALLOW_REMOTE
+    // Check if the message is a remote message
+    if (buf[5] == (uint8_t)MSG_TYPES::REMOTE)
+    {
+
+        FromRemotePacket rPck(buf, packetSize);
+        if (!rPck.isValid())
+        {
+            Serial.println(F("WARNING: Invalid RemotePacket received!"));
+            return;
+        }
+
+        Serial.print(F("-> REMOTE message received "));
+        rPck.print();
+        Serial.println();
+        setRemote(rPck.LAYER, rPck.VALUE);
+        return;
+    }
+#endif
+    // Assume message is a server message
+    ServerPacket pck(buf, packetSize);
+    if (!pck.isValid())
+    {
+        Serial.println(F("WARNING: Invalid Packet received!"));
+        return;
+    }
+    if (!checkUUID(pck))
+    {
+        Serial.println(F("WARNING: Received Packet UUID mismatch!"));
+        return;
+    }
+
+    if (LED_BLINK_ONMESSAGE)
+    {
+        digitalWrite(PIN_LED2, LOW);
+    }
+    switch ((MSG_TYPES)pck.getTYPE())
+    {
+    case MSG_TYPES::RESET:
+        Serial.println(F("-> RESET message received..."));
+        resetEEPROM();
+        delay(1000);
+        break;
+    case MSG_TYPES::SET:
+        Serial.print(F("-> SET message received "));
+        pck.printData();
+        Serial.println();
+        setStatus(pck.getDATA(), pck.getSize());
+        sendStatus(true);
+        break;
+    default:
+        Serial.println(F("-> Unsupported message received!"));
+    }
+    if (LED_BLINK_ONMESSAGE)
+    {
+        digitalWrite(PIN_LED2, HIGH);
     }
 }

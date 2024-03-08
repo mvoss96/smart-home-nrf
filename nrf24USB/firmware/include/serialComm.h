@@ -1,5 +1,5 @@
 #pragma once
-#include "pins.h"
+#include "config.h"
 
 enum class MSG_TYPES : uint8_t
 {
@@ -24,12 +24,10 @@ inline const char *MSG_TYPES_STR[] = {
 
 void waitForHost();
 void checkForSerialMsg();
-bool testConnection(uint8_t channel, uint8_t address);
 void sendStringMessage(const char *message, MSG_TYPES type);
 void sendInitMessage();
-void nrfListen();
-bool nrfSend(uint8_t destination, void *data, uint8_t length, bool requireAck = true);
-uint8_t readAckPayload();
+void sendSerialPacket(uint8_t *data, uint8_t size, MSG_TYPES type);
+
 
 inline const char *msgTypeString(MSG_TYPES type)
 {

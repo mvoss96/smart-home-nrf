@@ -2,7 +2,7 @@
 #include <Arduino.h>
 #include "config.h"
 
-#ifdef __AVR__
+#if defined __AVR__ && DEVICE_BATTERY_POWERED == 1
 
 // Function to read the supply voltage using the internal 1.1V reference
 inline long readVcc()
